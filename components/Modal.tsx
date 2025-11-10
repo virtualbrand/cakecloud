@@ -8,9 +8,10 @@ interface ModalProps {
   onClose: () => void
   title: string
   children: React.ReactNode
+  maxWidth?: string
 }
 
-export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, maxWidth = '500px' }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -44,7 +45,10 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
       />
       
       {/* Modal */}
-      <div className="relative bg-[var(--color-snow)] rounded-2xl shadow-2xl w-full max-w-[500px] max-h-[90vh] overflow-hidden">
+      <div 
+        className="relative bg-[var(--color-snow)] rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-hidden"
+        style={{ maxWidth }}
+      >
         {/* Header */}
         <div className="sticky top-0 bg-[var(--color-snow)] flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">{title}</h2>

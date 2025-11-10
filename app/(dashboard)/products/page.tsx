@@ -19,6 +19,40 @@ const formatInteger = (value: number): string => {
   })
 }
 
+// Função para formatar input de volume (com separador de milhares, sem decimais)
+const formatVolumeInput = (value: string): string => {
+  // Remove tudo que não é número
+  const numbers = value.replace(/\D/g, '')
+  
+  if (!numbers) return ''
+  
+  // Converte para número e formata com separador de milhares
+  const numberValue = parseFloat(numbers)
+  
+  // Verifica se é um número válido
+  if (isNaN(numberValue)) return numbers
+  
+  return numberValue.toLocaleString('pt-BR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  })
+}
+
+// Função para formatar input de moeda (R$ com separador de milhares e 2 decimais)
+const formatCurrencyInput = (value: string): string => {
+  if (!value) return ''
+  
+  // Converte o valor string para número float
+  const numericValue = parseFloat(value)
+  
+  if (isNaN(numericValue)) return ''
+  
+  return numericValue.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
 type Ingredient = {
   id: string
   name: string
@@ -128,7 +162,7 @@ function IngredientsTab() {
 
   const fetchIngredients = async () => {
     try {
-      const response = await fetch('/api/pricing/ingredients')
+      const response = await fetch('/api/products/ingredients')
       if (response.ok) {
         const data = await response.json()
         setIngredients(data)
@@ -145,8 +179,8 @@ function IngredientsTab() {
     
     try {
       const url = editingId 
-        ? `/api/pricing/ingredients?id=${editingId}`
-        : '/api/pricing/ingredients'
+        ? `/api/products/ingredients?id=${editingId}`
+        : '/api/products/ingredients'
       
       const response = await fetch(url, {
         method: editingId ? 'PATCH' : 'POST',
@@ -212,7 +246,7 @@ function IngredientsTab() {
     if (!confirm('Deseja realmente excluir este insumo?')) return
 
     try {
-      const response = await fetch(`/api/pricing/ingredients?id=${id}`, {
+      const response = await fetch(`/api/products/ingredients?id=${id}`, {
         method: 'DELETE'
       })
 
@@ -272,11 +306,15 @@ function IngredientsTab() {
                 {formData.unit === 'unidades' ? 'Quantidade *' : 'Volume *'}
               </label>
               <input
-                type="number"
-                step="0.01"
-                placeholder={formData.unit === 'unidades' ? '12' : '5000'}
-                value={formData.volume}
-                onChange={(e) => setFormData({ ...formData, volume: e.target.value })}
+                type="text"
+                inputMode="numeric"
+                placeholder={formData.unit === 'unidades' ? '12' : '1.000'}
+                value={formData.volume ? formatVolumeInput(formData.volume) : ''}
+                onChange={(e) => {
+                  // Remove tudo que não é número do valor digitado
+                  const rawValue = e.target.value.replace(/\D/g, '')
+                  setFormData(prev => ({ ...prev, volume: rawValue }))
+                }}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
               />
@@ -284,11 +322,17 @@ function IngredientsTab() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Custo Médio (R$) *</label>
               <input
-                type="number"
-                step="0.01"
-                placeholder="19.00"
-                value={formData.average_cost}
-                onChange={(e) => setFormData({ ...formData, average_cost: e.target.value })}
+                type="text"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={formData.average_cost ? formatCurrencyInput(formData.average_cost) : ''}
+                onChange={(e) => {
+                  // Remove tudo que não é número
+                  const rawValue = e.target.value.replace(/\D/g, '')
+                  // Converte centavos para formato decimal (divide por 100)
+                  const decimalValue = rawValue ? (parseInt(rawValue, 10) / 100).toFixed(2) : ''
+                  setFormData(prev => ({ ...prev, average_cost: decimalValue }))
+                }}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
               />
@@ -397,7 +441,7 @@ function BasesTab() {
 
   const fetchBases = async () => {
     try {
-      const response = await fetch('/api/pricing/bases')
+      const response = await fetch('/api/products/bases')
       if (response.ok) {
         const data = await response.json()
         setBases(data)
@@ -411,7 +455,7 @@ function BasesTab() {
 
   const fetchIngredients = async () => {
     try {
-      const response = await fetch('/api/pricing/ingredients')
+      const response = await fetch('/api/products/ingredients')
       if (response.ok) {
         const data = await response.json()
         setIngredients(data)
@@ -443,8 +487,8 @@ function BasesTab() {
     
     try {
       const url = editingId 
-        ? `/api/pricing/bases?id=${editingId}`
-        : '/api/pricing/bases'
+        ? `/api/products/bases?id=${editingId}`
+        : '/api/products/bases'
       
       const response = await fetch(url, {
         method: editingId ? 'PATCH' : 'POST',
@@ -510,7 +554,7 @@ function BasesTab() {
     if (!confirm('Deseja realmente excluir esta base?')) return
 
     try {
-      const response = await fetch(`/api/pricing/bases?id=${id}`, {
+      const response = await fetch(`/api/products/bases?id=${id}`, {
         method: 'DELETE'
       })
 
@@ -776,7 +820,7 @@ function ProductsTab() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/pricing/products')
+      const response = await fetch('/api/products/pricing')
       if (response.ok) {
         const data = await response.json()
         setProducts(data)
@@ -790,7 +834,7 @@ function ProductsTab() {
 
   const fetchIngredients = async () => {
     try {
-      const response = await fetch('/api/pricing/ingredients')
+      const response = await fetch('/api/products/ingredients')
       if (response.ok) {
         const data = await response.json()
         setIngredients(data)
@@ -802,7 +846,7 @@ function ProductsTab() {
 
   const fetchBases = async () => {
     try {
-      const response = await fetch('/api/pricing/bases')
+      const response = await fetch('/api/products/bases')
       if (response.ok) {
         const data = await response.json()
         setBases(data)
@@ -834,8 +878,8 @@ function ProductsTab() {
     
     try {
       const url = editingId 
-        ? `/api/pricing/products?id=${editingId}`
-        : '/api/pricing/products'
+        ? `/api/products/pricing?id=${editingId}`
+        : '/api/products/pricing'
       
       const response = await fetch(url, {
         method: editingId ? 'PATCH' : 'POST',
@@ -911,7 +955,7 @@ function ProductsTab() {
     if (!confirm('Deseja realmente excluir este produto?')) return
 
     try {
-      const response = await fetch(`/api/pricing/products?id=${id}`, {
+      const response = await fetch(`/api/products/pricing?id=${id}`, {
         method: 'DELETE'
       })
 
@@ -948,7 +992,7 @@ function ProductsTab() {
         </button>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingId ? "Editar Produto Final" : "Cadastrar Produto Final"}>
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingId ? "Editar Produto Final" : "Cadastrar Produto Final"} maxWidth="625px">
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 mb-4">
             <div>
@@ -993,11 +1037,17 @@ function ProductsTab() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Venda (R$)</label>
               <input
-                type="number"
-                step="0.01"
-                placeholder="80.00"
-                value={formData.selling_price}
-                onChange={(e) => setFormData({ ...formData, selling_price: e.target.value })}
+                type="text"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={formData.selling_price ? formatCurrencyInput(formData.selling_price) : ''}
+                onChange={(e) => {
+                  // Remove tudo que não é número
+                  const rawValue = e.target.value.replace(/\D/g, '')
+                  // Converte centavos para formato decimal (divide por 100)
+                  const decimalValue = rawValue ? (parseInt(rawValue, 10) / 100).toFixed(2) : ''
+                  setFormData(prev => ({ ...prev, selling_price: decimalValue }))
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
               />
             </div>

@@ -9,9 +9,6 @@ import {
   ShoppingCart, 
   Users, 
   TrendingUp,
-  Calendar,
-  UserCheck,
-  Shield,
   HelpCircle,
   MessageSquare,
   Bell,
@@ -29,8 +26,6 @@ const menuItems = [
   { icon: ShoppingCart, label: 'Pedidos', href: '/orders' },
   { icon: Users, label: 'Clientes', href: '/customers' },
   { icon: TrendingUp, label: 'Performance', href: '/performance' },
-  { icon: UserCheck, label: 'Funcionários', href: '/employees' },
-  { icon: Shield, label: 'Segurança', href: '/security' },
 ]
 
 const bottomMenuItems = [
@@ -43,6 +38,7 @@ export default function Sidebar() {
   const router = useRouter()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const supabase = createClient()
 
@@ -50,8 +46,35 @@ export default function Sidebar() {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
+      
+      // Carrega o avatar do perfil
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .single()
+        
+        if (profile?.avatar_url) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(profile.avatar_url)
+          setAvatarUrl(publicUrl)
+        }
+      }
     }
     getUser()
+
+    // Listener para atualizar o avatar quando houver mudança
+    const handleAvatarUpdate = (event: CustomEvent) => {
+      setAvatarUrl(event.detail.avatarUrl)
+    }
+
+    window.addEventListener('avatar-updated', handleAvatarUpdate as EventListener)
+
+    return () => {
+      window.removeEventListener('avatar-updated', handleAvatarUpdate as EventListener)
+    }
   }, [])
 
   useEffect(() => {
@@ -146,8 +169,12 @@ export default function Sidebar() {
               onClick={() => setShowUserMenu(!showUserMenu)}
               className={`flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-all w-full ${isCollapsed ? 'justify-center' : ''}`}
             >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--color-melon)] to-[var(--color-old-rose)] flex items-center justify-center shadow-md flex-shrink-0">
-                <span className="text-white text-sm font-semibold">{getUserInitials()}</span>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--color-melon)] to-[var(--color-old-rose)] flex items-center justify-center shadow-md flex-shrink-0 overflow-hidden">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-white text-sm font-semibold">{getUserInitials()}</span>
+                )}
               </div>
               {!isCollapsed && (
                 <div className="flex-1 text-left">
@@ -172,7 +199,7 @@ export default function Sidebar() {
                 <button
                   onClick={() => {
                     setShowUserMenu(false)
-                    router.push('/profile')
+                    router.push('/settings/profile')
                   }}
                   className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[var(--color-lavender-blush)] flex items-center gap-3 transition-colors"
                 >
@@ -183,7 +210,7 @@ export default function Sidebar() {
                 <button
                   onClick={() => {
                     setShowUserMenu(false)
-                    router.push('/settings')
+                    router.push('/settings/preferences')
                   }}
                   className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[var(--color-lavender-blush)] flex items-center gap-3 transition-colors"
                 >
@@ -217,16 +244,16 @@ export default function Sidebar() {
                   key={item.href}
                   href={item.href}
                   className={`
-                    flex items-center gap-3 px-4 py-3 rounded-xl transition-all group
+                    flex items-center gap-3 px-4 py-3 rounded-[10px] transition-all group
                     ${active 
                       ? 'bg-gradient-to-r from-[var(--color-old-rose)] to-[var(--color-melon)] text-white shadow-lg shadow-[var(--color-old-rose)]/30' 
-                      : 'text-gray-600 hover:bg-gray-50'
+                      : 'text-gray-600 hover:bg-[var(--color-lavender-blush)]'
                     }
                     ${isCollapsed ? 'justify-center' : ''}
                   `}
                   title={isCollapsed ? item.label : ''}
                 >
-                  <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-white' : 'text-gray-500 group-hover:text-gray-900'}`} />
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-white' : 'text-gray-500 group-hover:text-[var(--color-old-rose)]'}`} />
                   {!isCollapsed && <span className="font-medium text-sm">{item.label}</span>}
                   {active && !isCollapsed && (
                     <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white"></div>
@@ -241,7 +268,7 @@ export default function Sidebar() {
         <div className="border-t border-gray-100 p-3 space-y-2">
           {/* Notifications */}
           <button 
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-gray-600 hover:bg-[var(--color-lavender-blush)] relative group ${isCollapsed ? 'justify-center' : ''}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-[10px] transition-all text-gray-600 hover:bg-[var(--color-lavender-blush)] relative group ${isCollapsed ? 'justify-center' : ''}`}
             title={isCollapsed ? 'Notificações' : ''}
           >
             <Bell className="w-5 h-5 flex-shrink-0 text-gray-500 group-hover:text-[var(--color-old-rose)]" />
@@ -258,7 +285,7 @@ export default function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={`
-                  flex items-center gap-3 px-4 py-3 rounded-xl transition-all group
+                  flex items-center gap-3 px-4 py-3 rounded-[10px] transition-all group
                   ${active 
                     ? 'bg-[var(--color-lavender-blush)] text-[var(--color-old-rose)]' 
                     : 'text-gray-600 hover:bg-[var(--color-lavender-blush)]'
