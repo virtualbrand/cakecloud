@@ -1,11 +1,22 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
-import Header from "@/components/Header";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
+const kumbhSans = localFont({
+  src: [
+    {
+      path: '../public/fonts/KumbhSans-Regular.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../public/fonts/KumbhSans-Bold.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+  ],
+  variable: '--font-kumbh-sans',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -20,11 +31,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${inter.variable} font-sans antialiased`}>
-        <Header />
-        <main className="min-h-screen bg-gray-50">
-          {children}
-        </main>
+      <body className={`${kumbhSans.variable} font-sans antialiased`}>
+        {children}
       </body>
     </html>
   );
