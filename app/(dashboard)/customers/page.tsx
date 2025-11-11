@@ -138,16 +138,14 @@ export default function CustomersPage() {
         break
       case 'phone':
         const phoneDigits = value.replace(/\D/g, '')
-        if (!phoneDigits) {
-          error = 'Telefone é obrigatório'
-        } else if (phoneDigits.length < 10) {
+        // Telefone é opcional, mas se preenchido deve ser válido
+        if (phoneDigits && phoneDigits.length < 10) {
           error = 'Telefone inválido'
         }
         break
       case 'email':
-        if (!value.trim()) {
-          error = 'E-mail é obrigatório'
-        } else if (!validateEmail(value)) {
+        // E-mail é opcional, mas se preenchido deve ser válido
+        if (value.trim() && !validateEmail(value)) {
           error = 'E-mail inválido'
         }
         break
@@ -328,7 +326,7 @@ export default function CustomersPage() {
       </div>
 
       {/* Lista de Clientes */}
-      <div className="bg-[var(--color-snow)] rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {filteredCustomers.length === 0 ? (
           <p className="text-gray-600 text-center py-8">
             {searchQuery ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado. Clique em "+ Novo Cliente" para começar.'}
@@ -339,7 +337,7 @@ export default function CustomersPage() {
               <div
                 key={customer.id}
                 onClick={() => setSelectedCustomer(customer)}
-                className="p-6 hover:bg-[var(--color-lavender-blush)] transition cursor-pointer"
+                className="group cursor-pointer bg-white border-b border-gray-200 last:border-b-0 p-6 transition-colors hover:bg-gray-50"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -349,14 +347,18 @@ export default function CustomersPage() {
                     <div>
                       <h3 className="font-semibold text-gray-900">{customer.name}</h3>
                       <div className="flex items-center gap-4 mt-1">
-                        <span className="text-sm text-gray-600 flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          {customer.phone}
-                        </span>
-                        <span className="text-sm text-gray-600 flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          {customer.email}
-                        </span>
+                        {customer.phone && (
+                          <span className="text-sm text-gray-600 flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {customer.phone}
+                          </span>
+                        )}
+                        {customer.email && (
+                          <span className="text-sm text-gray-600 flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {customer.email}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -432,7 +434,7 @@ export default function CustomersPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Telefone *
+                  Telefone
                 </label>
                 <input
                   type="tel"
@@ -453,7 +455,7 @@ export default function CustomersPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  E-mail *
+                  E-mail
                 </label>
                 <input
                   type="email"
@@ -535,14 +537,21 @@ export default function CustomersPage() {
               <div className="space-y-3">
                 <h4 className="font-semibold text-gray-900">Informações de Contato</h4>
                 <div className="space-y-2">
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <Phone className="w-4 h-4 text-[var(--color-old-rose)]" />
-                    <span>{selectedCustomer.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <Mail className="w-4 h-4 text-[var(--color-old-rose)]" />
-                    <span>{selectedCustomer.email}</span>
-                  </div>
+                  {selectedCustomer.phone && (
+                    <div className="flex items-center gap-3 text-gray-700">
+                      <Phone className="w-4 h-4 text-[var(--color-old-rose)]" />
+                      <span>{selectedCustomer.phone}</span>
+                    </div>
+                  )}
+                  {selectedCustomer.email && (
+                    <div className="flex items-center gap-3 text-gray-700">
+                      <Mail className="w-4 h-4 text-[var(--color-old-rose)]" />
+                      <span>{selectedCustomer.email}</span>
+                    </div>
+                  )}
+                  {!selectedCustomer.phone && !selectedCustomer.email && (
+                    <p className="text-sm text-gray-500 italic">Nenhuma informação de contato cadastrada</p>
+                  )}
                 </div>
               </div>
 

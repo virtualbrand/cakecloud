@@ -1607,7 +1607,7 @@ export default function OrdersPage() {
                   const formatted = formatPhone(e.target.value)
                   setFormData(prev => ({ ...prev, phone: formatted }))
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
                 placeholder="(00) 00000-0000"
               />
             </div>
@@ -1628,7 +1628,7 @@ export default function OrdersPage() {
                     const formatted = formatCurrency(e.target.value)
                     setFormData(prev => ({ ...prev, value: formatted }))
                   }}
-                  className="w-full pl-12 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                  className="w-full pl-12 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
                   placeholder="0,00"
                 />
               </div>
@@ -1643,7 +1643,7 @@ export default function OrdersPage() {
                 value={formData.notes}
                 onChange={handleInputChange}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 resize-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 resize-none bg-white"
                 placeholder="Observações sobre o pedido"
               />
             </div>
@@ -1704,13 +1704,12 @@ export default function OrdersPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email *
+                Email
               </label>
               <input
                 type="email"
                 value={newCustomerData.email}
                 onChange={(e) => setNewCustomerData(prev => ({ ...prev, email: e.target.value }))}
-                required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500"
                 placeholder="email@exemplo.com"
               />
@@ -1718,13 +1717,12 @@ export default function OrdersPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Telefone *
+                Telefone
               </label>
               <input
                 type="tel"
                 value={newCustomerData.phone}
                 onChange={(e) => setNewCustomerData(prev => ({ ...prev, phone: formatPhone(e.target.value) }))}
-                required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500"
                 placeholder="(00) 00000-0000"
               />
