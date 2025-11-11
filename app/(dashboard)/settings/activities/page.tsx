@@ -1,8 +1,31 @@
 'use client'
 
-import { Activity, User, Package, ShoppingCart, Settings } from 'lucide-react'
+import { useState } from 'react'
+import { User, Package, ShoppingCart, Settings } from 'lucide-react'
 
 export default function ActivitiesPage() {
+  const [showInSidebar, setShowInSidebar] = useState(() => {
+    // Inicializa do localStorage se disponível
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('showActivitiesInSidebar')
+      return saved === null ? true : saved === 'true'
+    }
+    return true
+  })
+
+  // Salva a preferência e dispara evento
+  const handleToggle = () => {
+    const newValue = !showInSidebar
+    setShowInSidebar(newValue)
+    localStorage.setItem('showActivitiesInSidebar', String(newValue))
+    
+    // Dispara evento para atualizar a sidebar
+    const event = new CustomEvent('toggle-activities-sidebar', { 
+      detail: { show: newValue } 
+    })
+    window.dispatchEvent(event)
+  }
+
   const activities = [
     {
       icon: ShoppingCart,
@@ -42,11 +65,37 @@ export default function ActivitiesPage() {
   ]
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="p-6 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">Atividades Recentes</h2>
-        <p className="text-gray-600 mt-1">Histórico de ações realizadas no sistema</p>
+    <div className="space-y-6">
+      {/* Configuração do Menu Lateral */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">Exibir no menu lateral</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Mostrar Atividades como item do menu principal
+            </p>
+          </div>
+          <button
+            onClick={handleToggle}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              showInSidebar ? 'bg-[var(--color-old-rose)]' : 'bg-gray-200'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                showInSidebar ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
       </div>
+
+      {/* Lista de Atividades */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Atividades Recentes</h2>
+          <p className="text-gray-600 mt-1">Histórico de ações realizadas no sistema</p>
+        </div>
 
       <div className="divide-y divide-gray-200">
         {activities.map((activity, index) => {
@@ -72,6 +121,7 @@ export default function ActivitiesPage() {
         <button className="text-sm text-[var(--color-old-rose)] hover:text-[var(--color-rosy-brown)] font-medium">
           Ver todas as atividades
         </button>
+      </div>
       </div>
     </div>
   )

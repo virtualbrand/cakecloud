@@ -9,6 +9,7 @@ import {
   ShoppingCart, 
   Users, 
   TrendingUp,
+  Activity,
   HelpCircle,
   MessageSquare,
   Bell,
@@ -16,7 +17,6 @@ import {
   LogOut,
   User,
   ChevronLeft,
-  ChevronRight
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -40,6 +40,14 @@ export default function Sidebar() {
   const [user, setUser] = useState<any>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [showActivities, setShowActivities] = useState(() => {
+    // Inicializa do localStorage se disponível
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('showActivitiesInSidebar')
+      return saved === null ? true : saved === 'true'
+    }
+    return true
+  })
   const supabase = createClient()
 
   useEffect(() => {
@@ -70,10 +78,17 @@ export default function Sidebar() {
       setAvatarUrl(event.detail.avatarUrl)
     }
 
+    // Listener para toggle de atividades na sidebar
+    const handleActivitiesToggle = (event: CustomEvent) => {
+      setShowActivities(event.detail.show)
+    }
+
     window.addEventListener('avatar-updated', handleAvatarUpdate as EventListener)
+    window.addEventListener('toggle-activities-sidebar', handleActivitiesToggle as EventListener)
 
     return () => {
       window.removeEventListener('avatar-updated', handleAvatarUpdate as EventListener)
+      window.removeEventListener('toggle-activities-sidebar', handleActivitiesToggle as EventListener)
     }
   }, [])
 
@@ -261,6 +276,28 @@ export default function Sidebar() {
                 </Link>
               )
             })}
+
+            {/* Item Atividades (condicional) */}
+            {showActivities && (
+              <Link
+                href="/activities"
+                className={`
+                  flex items-center gap-3 px-4 py-3 rounded-[10px] transition-all group
+                  ${isActive('/activities')
+                    ? 'bg-gradient-to-r from-[var(--color-old-rose)] to-[var(--color-melon)] text-white shadow-lg shadow-[var(--color-old-rose)]/30' 
+                    : 'text-gray-600 hover:bg-[var(--color-lavender-blush)]'
+                  }
+                  ${isCollapsed ? 'justify-center' : ''}
+                `}
+                title={isCollapsed ? 'Atividades' : ''}
+              >
+                <Activity className={`w-5 h-5 flex-shrink-0 ${isActive('/activities') ? 'text-white' : 'text-gray-500 group-hover:text-[var(--color-old-rose)]'}`} />
+                {!isCollapsed && <span className="font-medium text-sm">Atividades</span>}
+                {isActive('/activities') && !isCollapsed && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white"></div>
+                )}
+              </Link>
+            )}
           </div>
         </nav>
 

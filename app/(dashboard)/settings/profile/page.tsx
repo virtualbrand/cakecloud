@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { User, Mail, Phone, MapPin, Camera, Save, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { showToast } from '@/app/(dashboard)/layout'
 
 type ProfileData = {
   id: string
@@ -66,7 +67,6 @@ const formatCEP = (value: string): string => {
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [profileData, setProfileData] = useState<ProfileData>({
     id: '',
     email: '',
@@ -92,7 +92,12 @@ export default function ProfilePage() {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       
       if (userError || !user) {
-        setMessage({ type: 'error', text: 'Erro ao carregar perfil' })
+        showToast({
+          title: 'Erro',
+          message: 'Erro ao carregar perfil',
+          variant: 'error',
+          duration: 3000,
+        })
         return
       }
 
@@ -134,7 +139,12 @@ export default function ProfilePage() {
       }
     } catch {
       console.error('Erro ao carregar perfil')
-      setMessage({ type: 'error', text: 'Erro ao carregar perfil' })
+      showToast({
+        title: 'Erro',
+        message: 'Erro ao carregar perfil',
+        variant: 'error',
+        duration: 3000,
+      })
     } finally {
       setLoading(false)
     }
@@ -159,7 +169,12 @@ export default function ProfilePage() {
     const file = e.target.files?.[0]
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
-        setMessage({ type: 'error', text: 'A imagem deve ter no máximo 2MB' })
+        showToast({
+          title: 'Erro',
+          message: 'A imagem deve ter no máximo 2MB',
+          variant: 'error',
+          duration: 3000,
+        })
         return
       }
       
@@ -175,7 +190,6 @@ export default function ProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    setMessage(null)
 
     try {
       const supabase = createClient()
@@ -184,7 +198,12 @@ export default function ProfilePage() {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       
       if (userError || !user) {
-        setMessage({ type: 'error', text: 'Usuário não autenticado' })
+        showToast({
+          title: 'Erro',
+          message: 'Usuário não autenticado',
+          variant: 'error',
+          duration: 3000,
+        })
         setSaving(false)
         return
       }
@@ -202,7 +221,12 @@ export default function ProfilePage() {
 
         if (uploadError) {
           console.error('Erro no upload:', uploadError)
-          setMessage({ type: 'error', text: `Erro ao fazer upload da imagem: ${uploadError.message}` })
+          showToast({
+            title: 'Erro',
+            message: `Erro ao fazer upload da imagem: ${uploadError.message}`,
+            variant: 'error',
+            duration: 4000,
+          })
           setSaving(false)
           return
         }
@@ -232,12 +256,22 @@ export default function ProfilePage() {
 
       if (error) {
         console.error('Erro ao atualizar perfil:', error)
-        setMessage({ type: 'error', text: `Erro ao salvar perfil: ${error.message}` })
+        showToast({
+          title: 'Erro',
+          message: `Erro ao salvar perfil: ${error.message}`,
+          variant: 'error',
+          duration: 4000,
+        })
         setSaving(false)
         return
       }
 
-      setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' })
+      showToast({
+        title: 'Sucesso!',
+        message: 'Perfil atualizado com sucesso!',
+        variant: 'success',
+        duration: 3000,
+      })
       setAvatarFile(null)
       
       // Recarrega o perfil para pegar a URL pública atualizada
@@ -256,7 +290,12 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error('Erro ao salvar perfil:', error)
-      setMessage({ type: 'error', text: 'Erro inesperado ao salvar perfil. Tente novamente.' })
+      showToast({
+        title: 'Erro',
+        message: 'Erro inesperado ao salvar perfil. Tente novamente.',
+        variant: 'error',
+        duration: 4000,
+      })
     } finally {
       setSaving(false)
     }
@@ -278,16 +317,6 @@ export default function ProfilePage() {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      {message && (
-        <div className={`m-6 p-4 rounded-lg ${
-          message.type === 'success' 
-            ? 'bg-green-50 text-green-800 border border-green-200' 
-            : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
-          {message.text}
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="p-6">
         {/* Avatar Section */}
         <div className="mb-8 pb-8 border-b border-gray-200">

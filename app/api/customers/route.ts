@@ -4,26 +4,27 @@ import { createClient } from '@/lib/supabase/server'
 export async function GET() {
   try {
     const supabase = await createClient()
+    
+    // Verifica autenticação
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
 
-    // Buscar clientes com contagem de pedidos
+    // Buscar clientes do usuário
     const { data: customers, error } = await supabase
       .from('customers')
-      .select(`
-        *,
-        orders:orders(count)
-      `)
+      .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      console.error('Erro ao buscar clientes:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 
-    // Transformar dados para incluir orders_count
-    const customersWithCount = customers?.map(customer => ({
-      ...customer,
-      orders_count: customer.orders?.[0]?.count || 0,
-      orders: undefined // Remove o campo orders do resultado
-    }))
-
-    return NextResponse.json(customersWithCount || [])
+    return NextResponse.json(customers || [])
   } catch (error) {
     console.error('Error fetching customers:', error)
     return NextResponse.json({ error: 'Failed to fetch customers' }, { status: 500 })
@@ -33,12 +34,21 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
+    
+    // Verifica autenticação
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
+    
     const body = await request.json()
 
     const { data, error } = await supabase
       .from('customers')
       .insert([
         {
+          user_id: user.id,
           name: body.name,
           email: body.email,
           phone: body.phone,
@@ -47,7 +57,10 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Erro ao criar cliente:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 
     return NextResponse.json(data)
   } catch (error) {
@@ -59,6 +72,14 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const supabase = await createClient()
+    
+    // Verifica autenticação
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
+    
     const body = await request.json()
     const { id, ...updateData } = body
 
@@ -66,10 +87,14 @@ export async function PUT(request: Request) {
       .from('customers')
       .update(updateData)
       .eq('id', id)
+      .eq('user_id', user.id)
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Erro ao atualizar cliente:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 
     return NextResponse.json(data)
   } catch (error) {
@@ -81,6 +106,14 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const supabase = await createClient()
+    
+    // Verifica autenticação
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
+    
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
@@ -92,8 +125,12 @@ export async function DELETE(request: Request) {
       .from('customers')
       .delete()
       .eq('id', id)
+      .eq('user_id', user.id)
 
-    if (error) throw error
+    if (error) {
+      console.error('Erro ao deletar cliente:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
