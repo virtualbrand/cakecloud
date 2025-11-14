@@ -264,9 +264,9 @@ export default function MensagensPage() {
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {filteredContacts.map((contact) => (
+                {filteredContacts.map((contact, index) => (
                   <button
-                    key={contact.id}
+                    key={contact.id || `contact-${index}`}
                     onClick={() => handleContactSelect(contact)}
                     className={`w-full flex items-start gap-3 p-4 hover:bg-gray-50 transition-colors text-left cursor-pointer ${
                       selectedContact?.id === contact.id ? 'bg-[var(--color-lavender-blush)]' : ''
@@ -352,9 +352,9 @@ export default function MensagensPage() {
                   </div>
                 ) : (
                   <>
-                    {messages.map((message) => (
+                    {messages.map((message, index) => (
                       <div
-                        key={message.id}
+                        key={message.id || `message-${index}`}
                         className={`flex ${message.fromMe ? 'justify-end' : 'justify-start'}`}
                       >
                         <div

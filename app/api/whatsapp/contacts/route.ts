@@ -14,10 +14,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Instância não configurada' }, { status: 400 })
     }
 
-    console.log('Buscando chats da instância:', instanceName);
+    console.log('Buscando contatos da instância:', instanceName);
+
+    // Buscar contatos para obter informações completas
+    const contactsResponse = await fetch(
+      `${EVOLUTION_API_URL}/chat/findContacts/${instanceName}`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': EVOLUTION_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          where: {},
+          limit: 100
+        }),
+      }
+    )
+
+    console.log('Evolution API contacts response status:', contactsResponse.status);
 
     // Buscar chats para obter conversas com metadados completos
-    const response = await fetch(
+    const chatsResponse = await fetch(
       `${EVOLUTION_API_URL}/chat/findChats/${instanceName}`,
       {
         method: 'POST',
@@ -32,24 +50,38 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    console.log('Evolution API chats response status:', response.status);
+    console.log('Evolution API chats response status:', chatsResponse.status);
 
-    if (!response.ok) {
-      const errorText = await response.text();
+    if (!chatsResponse.ok) {
+      const errorText = await chatsResponse.text();
       console.log('Evolution API chats error:', errorText);
       return NextResponse.json([])
     }
 
-    const data = await response.json()
+    const chatsData = await chatsResponse.json()
+    const contactsData = contactsResponse.ok ? await contactsResponse.json() : null;
     
     // Verificar se a resposta é um erro da Evolution API
-    if (data.error || data.status === 500) {
-      console.log('Evolution API retornou erro:', data);
+    if (chatsData.error || chatsData.status === 500) {
+      console.log('Evolution API retornou erro:', chatsData);
       return NextResponse.json([])
     }
     
+    // Criar um mapa de contatos por ID para acesso rápido
+    const contactsMap = new Map<string, Record<string, unknown>>();
+    if (contactsData && Array.isArray(contactsData)) {
+      contactsData.forEach((contact: Record<string, unknown>) => {
+        const id = contact.id as string;
+        if (id) {
+          contactsMap.set(id, contact);
+        }
+      });
+    }
+    
+    console.log('Contatos encontrados:', contactsMap.size);
+    
     // Extrair chats do formato paginado
-    const chats = data.chats?.records || data || [];
+    const chats = chatsData.chats?.records || chatsData || [];
     
     console.log('Chats retornados:', chats.length);
     
@@ -61,23 +93,38 @@ export async function GET(request: NextRequest) {
     const formatPhone = (num: string) => {
       const cleaned = num.replace(/\D/g, '');
       
+      // Formato brasileiro com código do país (55)
       if (cleaned.startsWith('55') && cleaned.length >= 12) {
         const countryCode = cleaned.slice(0, 2);
         const areaCode = cleaned.slice(2, 4);
         const firstPart = cleaned.slice(4, 9);
         const secondPart = cleaned.slice(9);
-        return `+${countryCode} ${areaCode} ${firstPart}-${secondPart}`;
+        return `+${countryCode} (${areaCode}) ${firstPart}-${secondPart}`;
       }
       
-      if (cleaned.length > 10) {
-        return `+${cleaned}`;
+      // Outros países com código
+      if (cleaned.length > 11) {
+        const countryCode = cleaned.slice(0, -11);
+        const areaCode = cleaned.slice(-11, -9);
+        const firstPart = cleaned.slice(-9, -4);
+        const secondPart = cleaned.slice(-4);
+        return `+${countryCode} (${areaCode}) ${firstPart}-${secondPart}`;
       }
       
+      // Número brasileiro sem código do país (11 dígitos)
       if (cleaned.length === 11) {
         const areaCode = cleaned.slice(0, 2);
         const firstPart = cleaned.slice(2, 7);
         const secondPart = cleaned.slice(7);
-        return `(${areaCode}) ${firstPart}-${secondPart}`;
+        return `+55 (${areaCode}) ${firstPart}-${secondPart}`;
+      }
+      
+      // Número brasileiro antigo sem código do país (10 dígitos)
+      if (cleaned.length === 10) {
+        const areaCode = cleaned.slice(0, 2);
+        const firstPart = cleaned.slice(2, 6);
+        const secondPart = cleaned.slice(6);
+        return `+55 (${areaCode}) ${firstPart}-${secondPart}`;
       }
       
       return num;
@@ -86,13 +133,26 @@ export async function GET(request: NextRequest) {
     // Formatar contatos para o frontend
     const formattedContacts = chats
       .filter((contact: Record<string, unknown>) => {
-        // Filtrar status broadcasts
-        return !contact.id?.toString().includes('status@broadcast');
+        const id = contact.id as string;
+        // Filtrar status broadcasts e chats sem ID
+        return id && !id.includes('status@broadcast');
       })
       .map((chat: Record<string, unknown>) => {
-        const remoteJid = chat.id as string;
-        const isGroup = remoteJid?.endsWith('@g.us');
+        const remoteJid = (chat.remoteJid || chat.id) as string;
+        
+        // Verificar se é grupo de várias formas
+        const isGroup = remoteJid?.endsWith('@g.us') || 
+                       remoteJid?.includes('g.us') ||
+                       (chat.isGroup as boolean) === true;
+        
+        // IDs que começam com "cmhz" geralmente são grupos/comunidades/newsletters
+        // Números de telefone reais são numéricos ou terminam em @s.whatsapp.net
         const phone = remoteJid?.split('@')[0] || '';
+        const isPhoneNumber = /^\d+$/.test(phone);
+        const isCommunityOrNewsletter = phone.startsWith('cmhz') || phone.startsWith('status');
+        
+        // Buscar informações do contato no mapa
+        const contactInfo = contactsMap.get(remoteJid);
         
         // Buscar última mensagem do chat
         const lastMsg = chat.lastMessage as Record<string, unknown> | undefined;
@@ -124,29 +184,51 @@ export async function GET(request: NextRequest) {
         // Nome: para grupos usar o nome do chat, para contatos usar pushName
         let displayName = '';
         
-        if (isGroup) {
-          // Para grupos: usar o campo 'name' que contém o nome do grupo
-          displayName = (chat.name || chat.conversationName || '') as string;
-        } else {
-          // Para contatos individuais: usar pushName
+        if (isGroup || isCommunityOrNewsletter) {
+          // Para grupos/comunidades: usar pushName ou nome do grupo
           displayName = (chat.pushName || chat.name || chat.conversationName || '') as string;
+        } else if (isPhoneNumber) {
+          // Para contatos individuais com número de telefone: tentar várias fontes de nome
+          // Priorizar informações do endpoint de contatos
+          displayName = (
+            contactInfo?.pushName ||
+            contactInfo?.name ||
+            chat.pushName || 
+            chat.name || 
+            chat.conversationName || 
+            chat.notifyName ||
+            (chat.contact as Record<string, unknown>)?.name ||
+            (chat.contact as Record<string, unknown>)?.notify ||
+            ''
+          ) as string;
+          
+          // Limpar o nome se for só espaços ou vazio
+          displayName = displayName.trim();
+        } else {
+          // Para outros tipos (IDs especiais que não são telefones)
+          displayName = (chat.pushName || chat.name || chat.conversationName || '') as string;
+          displayName = displayName.trim();
         }
         
-        if (!displayName) {
+        // Se não tem nome, usar o telefone formatado (apenas para números válidos)
+        if (!displayName && isPhoneNumber) {
           displayName = formatPhone(phone);
+        } else if (!displayName) {
+          // Para IDs que não são telefones, usar "Contato"
+          displayName = 'Contato';
         }
         
         return {
           id: remoteJid,
           name: displayName,
-          phone: isGroup ? '' : formatPhone(phone),
-          rawPhone: isGroup ? '' : phone,
-          avatar: (chat.profilePictureUrl as string) || null,
+          phone: (isPhoneNumber && !isGroup) ? formatPhone(phone) : '',
+          rawPhone: (isPhoneNumber && !isGroup) ? phone : '',
+          avatar: (contactInfo?.profilePictureUrl || chat.profilePictureUrl as string) || null,
           lastMessage: lastMessageText,
           lastMessageTime: lastMessageTime,
           unreadCount: (chat.unreadCount as number) || 0,
           isOnline: false,
-          isGroup: isGroup
+          isGroup: isGroup || isCommunityOrNewsletter
         };
       })
       .filter((contact: Record<string, unknown>) => contact.lastMessage) // Apenas contatos com mensagens
