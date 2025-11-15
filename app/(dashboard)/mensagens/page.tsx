@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageCircle, Send, Phone, Search, Info, AlertCircle, Settings, RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import Image from 'next/image'
@@ -25,6 +25,8 @@ type Message = {
   timestamp: string
   fromMe: boolean
   status?: 'sent' | 'delivered' | 'read'
+  mediaUrl?: string
+  mediaType?: string
 }
 
 export default function MensagensPage() {
@@ -37,6 +39,7 @@ export default function MensagensPage() {
   const [initialLoading, setInitialLoading] = useState(true)
   const [connected, setConnected] = useState(false)
   const [instanceName] = useState('cakecloud-whatsapp') // Nome padrão da instância
+  const imageCacheRef = useRef<Record<string, string>>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Auto scroll para última mensagem
@@ -234,6 +237,78 @@ export default function MensagensPage() {
     return formatted
   }
 
+  const loadImageBase64 = useCallback(async (messageId: string) => {
+    if (imageCacheRef.current[messageId]) {
+      return imageCacheRef.current[messageId]
+    }
+
+    try {
+      const response = await fetch(
+        `/api/whatsapp/media?messageId=${messageId}&instance=cakecloud-whatsapp`
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.base64) {
+          const base64Url = `data:${data.mimetype || 'image/jpeg'};base64,${data.base64}`
+          imageCacheRef.current[messageId] = base64Url
+          return base64Url
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar imagem:', error)
+    }
+    
+    return null
+  }, [])
+
+  const WhatsAppImage = ({ messageId }: { messageId: string }) => {
+    const [imageSrc, setImageSrc] = useState<string | null>(null)
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+      let isMounted = true
+      
+      loadImageBase64(messageId).then(src => {
+        if (isMounted) {
+          setImageSrc(src)
+          setLoading(false)
+        }
+      })
+      
+      return () => {
+        isMounted = false
+      }
+    }, [messageId])
+
+    if (loading) {
+      return (
+        <div className="w-full flex items-center justify-center bg-gray-100 rounded-lg" style={{ aspectRatio: '4/3' }}>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-old-rose)]"></div>
+        </div>
+      )
+    }
+
+    if (!imageSrc) {
+      return (
+        <div className="w-full flex items-center justify-center bg-gray-100 rounded-lg text-gray-400 text-sm" style={{ aspectRatio: '4/3' }}>
+          Imagem não disponível
+        </div>
+      )
+    }
+
+    return (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img 
+        src={imageSrc} 
+        alt="Imagem"
+        className="rounded-lg w-full cursor-pointer"
+        style={{ display: 'block' }}
+        onClick={() => window.open(imageSrc, '_blank')}
+      />
+    )
+  }
+
   return (
     <div className="flex flex-col overflow-hidden -m-8 p-8" style={{ height: '100vh' }}>
       {/* Header */}
@@ -428,17 +503,32 @@ export default function MensagensPage() {
                             className={`flex ${message.fromMe ? 'justify-end' : 'justify-start'}`}
                           >
                             <div
-                              className={`max-w-[70%] px-4 py-2 ${
+                              className={`${
+                                message.mediaType === 'image' ? 'max-w-sm' : 'max-w-[70%]'
+                              } ${
+                                message.mediaType === 'image' ? 'px-1 py-1' : 'px-4 py-2'
+                              } ${
                                 message.fromMe
                                   ? 'bg-[var(--color-old-rose)] text-white rounded-lg rounded-br-sm'
                                   : 'bg-white text-gray-900 border border-gray-200 rounded-lg rounded-bl-sm'
                               }`}
                             >
-                              <div 
-                                className="text-sm whitespace-pre-wrap"
-                                dangerouslySetInnerHTML={{ __html: formatWhatsAppText(message.content) }}
-                              />
+                              {message.mediaType === 'image' && message.id && (
+                                <div className="mb-2 relative w-full max-w-sm">
+                                  <WhatsAppImage messageId={message.id} />
+                                </div>
+                              )}
+                              
+                              {message.content !== '📷 Imagem' && (
+                                <div 
+                                  className={`text-sm whitespace-pre-wrap ${message.mediaType === 'image' ? 'px-3 py-2' : ''}`}
+                                  dangerouslySetInnerHTML={{ __html: formatWhatsAppText(message.content) }}
+                                />
+                              )}
+                              
                               <div className={`flex items-center gap-1 justify-end mt-1 ${
+                                message.mediaType === 'image' ? 'px-3 pb-2' : ''
+                              } ${
                                 message.fromMe ? 'text-white/70' : 'text-gray-400'
                               }`}>
                                 <span className="text-xs">{formatTime(message.timestamp)}</span>

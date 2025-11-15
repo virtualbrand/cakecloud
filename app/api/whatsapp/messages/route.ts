@@ -68,6 +68,8 @@ export async function GET(request: NextRequest) {
     const messages = messagesArray.map((msg: Record<string, unknown>) => {
       // Extrair conteúdo da mensagem baseado no tipo
       let content = '';
+      let mediaUrl = '';
+      let mediaType = '';
       
       const message = msg.message as Record<string, unknown> | undefined;
       
@@ -79,16 +81,29 @@ export async function GET(request: NextRequest) {
       } else if (message?.imageMessage) {
         const imgMsg = message.imageMessage as Record<string, unknown>;
         content = (imgMsg.caption as string) || '📷 Imagem';
+        mediaUrl = (imgMsg.url as string) || '';
+        mediaType = 'image';
       } else if (message?.audioMessage) {
         content = '🎵 Áudio';
+        const audioMsg = message.audioMessage as Record<string, unknown>;
+        mediaUrl = (audioMsg.url as string) || '';
+        mediaType = 'audio';
       } else if (message?.documentMessage) {
         content = '📄 Documento';
+        const docMsg = message.documentMessage as Record<string, unknown>;
+        mediaUrl = (docMsg.url as string) || '';
+        mediaType = 'document';
       } else if (message?.videoMessage) {
         content = '🎥 Vídeo';
+        const videoMsg = message.videoMessage as Record<string, unknown>;
+        mediaUrl = (videoMsg.url as string) || '';
+        mediaType = 'video';
       } else if (msg.messageType === 'imageMessage') {
         content = '📷 Imagem';
+        mediaType = 'image';
       } else if (msg.messageType === 'audioMessage') {
         content = '🎵 Áudio';
+        mediaType = 'audio';
       }
       
       const key = msg.key as Record<string, unknown> | undefined;
@@ -99,7 +114,9 @@ export async function GET(request: NextRequest) {
         timestamp: new Date(((msg.messageTimestamp as number) || 0) * 1000).toISOString(),
         fromMe: (key?.fromMe || false) as boolean,
         status: (msg.status as number) === 3 ? 'read' : (msg.status as number) === 2 ? 'delivered' : 'sent',
-        messageTimestamp: (msg.messageTimestamp as number) || 0
+        messageTimestamp: (msg.messageTimestamp as number) || 0,
+        mediaUrl: mediaUrl,
+        mediaType: mediaType
       };
     })
     .filter((msg: { content: string }) => msg.content) // Filtrar mensagens sem conteúdo
