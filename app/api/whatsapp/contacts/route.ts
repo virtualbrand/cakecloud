@@ -131,13 +131,13 @@ export async function GET(request: NextRequest) {
     };
 
     // Formatar contatos para o frontend
-    const formattedContacts = chats
+    const contactsWithPromises = chats
       .filter((contact: Record<string, unknown>) => {
         const id = contact.id as string;
         // Filtrar status broadcasts e chats sem ID
         return id && !id.includes('status@broadcast');
       })
-      .map((chat: Record<string, unknown>) => {
+      .map(async (chat: Record<string, unknown>) => {
         const remoteJid = (chat.remoteJid || chat.id) as string;
         
         // Verificar se é grupo de várias formas
@@ -153,6 +153,13 @@ export async function GET(request: NextRequest) {
         
         // Buscar informações do contato no mapa
         const contactInfo = contactsMap.get(remoteJid);
+        
+        // Para avatares, vamos usar um placeholder que será gerenciado pelo frontend
+        // A Evolution API não tem um endpoint consistente para fotos de perfil
+        // As fotos virão diretamente dos dados de contato se disponíveis
+        const avatarUrl = contactInfo?.profilePictureUrl || 
+                         (chat.profilePictureUrl as string) || 
+                         null;
         
         // Buscar última mensagem do chat
         const lastMsg = chat.lastMessage as Record<string, unknown> | undefined;
@@ -231,7 +238,7 @@ export async function GET(request: NextRequest) {
           name: displayName,
           phone: (isPhoneNumber && !isGroup) ? formatPhone(phone) : '',
           rawPhone: (isPhoneNumber && !isGroup) ? phone : '',
-          avatar: (contactInfo?.profilePictureUrl || chat.profilePictureUrl as string) || null,
+          avatar: avatarUrl,
           lastMessage: lastMessageText,
           lastMessageTime: lastMessageTime,
           lastMessageTimestamp: lastMessageTimestamp,
@@ -239,13 +246,17 @@ export async function GET(request: NextRequest) {
           isOnline: false,
           isGroup: isGroup || isCommunityOrNewsletter
         };
-      })
-      .filter((contact: Record<string, unknown>) => contact.lastMessage) // Apenas contatos com mensagens
-      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+      });
+
+    // Aguardar todas as promises
+    const allContacts = await Promise.all(contactsWithPromises);
+    
+    // Filtrar e ordenar
+    const formattedContacts = allContacts
+      .filter((contact) => contact.lastMessage) // Apenas contatos com mensagens
+      .sort((a, b) => {
         // Ordenar por timestamp numérico (mais recente primeiro)
-        const timestampA = (a.lastMessageTimestamp || 0) as number;
-        const timestampB = (b.lastMessageTimestamp || 0) as number;
-        return timestampB - timestampA;
+        return b.lastMessageTimestamp - a.lastMessageTimestamp;
       });
 
     console.log('Contatos formatados:', formattedContacts.length);

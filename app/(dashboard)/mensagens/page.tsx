@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageCircle, Send, Phone, Search, Info, AlertCircle, Settings, Mic } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import Image from 'next/image'
 import Link from 'next/link'
 
 type Contact = {
@@ -584,8 +583,17 @@ export default function MensagensPage() {
                     <div className="relative flex-shrink-0">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-melon)] to-[var(--color-old-rose)] flex items-center justify-center overflow-hidden">
                         {contact.avatar ? (
-                          <Image src={contact.avatar} alt={contact.name} fill className="object-cover !rounded-full" />
-                        ) : (
+                          <img 
+                            src={contact.avatar} 
+                            alt={contact.name} 
+                            className="w-full h-full object-cover rounded-full"
+                            onError={(e) => {
+                              // Se a imagem falhar ao carregar, mostra a inicial
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        ) : null}
+                        {!contact.avatar && (
                           <span className="text-white font-semibold text-lg">
                             {contact.name.charAt(0).toUpperCase()}
                           </span>
@@ -634,8 +642,16 @@ export default function MensagensPage() {
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--color-melon)] to-[var(--color-old-rose)] flex items-center justify-center overflow-hidden relative">
                     {selectedContact.avatar ? (
-                      <Image src={selectedContact.avatar} alt={selectedContact.name} fill className="object-cover rounded-full" />
-                    ) : (
+                      <img 
+                        src={selectedContact.avatar} 
+                        alt={selectedContact.name} 
+                        className="w-full h-full object-cover rounded-full"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    ) : null}
+                    {!selectedContact.avatar && (
                       <span className="text-white font-semibold">
                         {selectedContact.name.charAt(0).toUpperCase()}
                       </span>

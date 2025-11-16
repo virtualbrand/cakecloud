@@ -508,6 +508,8 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
     name: '',
     description: '',
     loss_factor: '2',
+    unit: 'gramas',
+    yield: '',
     items: [] as { ingredient_id: string; quantity: string }[]
   })
   const [newItem, setNewItem] = useState({ ingredient_id: '', quantity: '' })
@@ -520,7 +522,7 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
   useEffect(() => {
     if (shouldOpenModal) {
       setEditingId(null)
-      setFormData({ name: '', description: '', loss_factor: '2', items: [] })
+      setFormData({ name: '', description: '', loss_factor: '2', unit: 'gramas', yield: '', items: [] })
       setNewItem({ ingredient_id: '', quantity: '' })
       setIsModalOpen(true)
       onModalClose()
@@ -614,6 +616,8 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
           name: '',
           description: '',
           loss_factor: '2',
+          unit: 'gramas',
+          yield: '',
           items: []
         })
       } else {
@@ -632,6 +636,8 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
       name: base.name,
       description: base.description || '',
       loss_factor: base.loss_factor.toString(),
+      unit: (base as any).unit || 'gramas',
+      yield: (base as any).yield?.toString() || '',
       items: (base.base_recipe_items || []).map(item => ({
         ingredient_id: item.ingredients?.id || item.ingredient_id,
         quantity: item.quantity.toString()
@@ -647,6 +653,8 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
       name: '',
       description: '',
       loss_factor: '2',
+      unit: 'gramas',
+      yield: '',
       items: []
     })
   }
@@ -695,6 +703,35 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
                 value={formData.loss_factor}
                 onChange={(e) => setFormData({ ...formData, loss_factor: e.target.value })}
                 required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Unidade *</label>
+              <select 
+                value={formData.unit}
+                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900"
+              >
+                <option value="gramas">Gramas (g)</option>
+                <option value="kg">Quilogramas (kg)</option>
+                <option value="ml">Mililitros (ml)</option>
+                <option value="litros">Litros (L)</option>
+                <option value="unidades">Unidades</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rendimento</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="1.000"
+                value={formData.yield ? formatVolumeInput(formData.yield) : ''}
+                onChange={(e) => {
+                  // Remove tudo que não é número do valor digitado
+                  const rawValue = e.target.value.replace(/\D/g, '')
+                  setFormData(prev => ({ ...prev, yield: rawValue }))
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
               />
             </div>
@@ -802,6 +839,13 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
                 <div>
                   <h3 className="font-semibold text-gray-900">{base.name}</h3>
                   <p className="text-sm text-gray-500">Fator de Perda: {formatBRL(base.loss_factor, 2)}%</p>
+                  {((base as any).unit || (base as any).yield) && (
+                    <p className="text-sm text-gray-500">
+                      {(base as any).unit && `Unidade: ${(base as any).unit}`}
+                      {(base as any).unit && (base as any).yield && ' | '}
+                      {(base as any).yield && `Rendimento: ${formatInteger(parseFloat((base as any).yield))}`}
+                    </p>
+                  )}
                   {base.description && <p className="text-sm text-gray-600 mt-1">{base.description}</p>}
                 </div>
                 <div className="text-right">

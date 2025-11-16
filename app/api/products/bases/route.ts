@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, description, loss_factor, items } = body
+    const { name, description, loss_factor, unit, yield: yieldValue, items } = body
 
     if (!name || loss_factor === undefined) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
@@ -64,7 +64,9 @@ export async function POST(request: NextRequest) {
           user_id: user.id,
           name,
           description,
-          loss_factor: parseFloat(loss_factor)
+          loss_factor: parseFloat(loss_factor),
+          unit: unit || 'gramas',
+          yield: yieldValue ? parseFloat(yieldValue) : null
         }
       ])
       .select()
@@ -170,7 +172,7 @@ export async function PATCH(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     const body = await request.json()
-    const { name, description, loss_factor, items } = body
+    const { name, description, loss_factor, unit, yield: yieldValue, items } = body
 
     if (!id) {
       return NextResponse.json({ error: 'ID não fornecido' }, { status: 400 })
@@ -182,7 +184,9 @@ export async function PATCH(request: NextRequest) {
       .update({
         name,
         description,
-        loss_factor: parseFloat(loss_factor)
+        loss_factor: parseFloat(loss_factor),
+        unit: unit || 'gramas',
+        yield: yieldValue ? parseFloat(yieldValue) : null
       })
       .eq('id', id)
       .eq('user_id', user.id)
