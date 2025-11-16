@@ -290,23 +290,34 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
       const response = await fetch('/api/products/ingredients')
       if (response.ok) {
         const data = await response.json()
+        console.log('Raw data from API:', data[0]) // Debug
+        
         // Garantir que valores numéricos sejam convertidos corretamente
         const normalizedData = data.map((item: any) => {
-          const volume = Number(item.volume) || 0
+          // O banco usa 'quantity', mas mantemos 'volume' no frontend
+          const volume = Number(item.quantity || item.volume) || 0
           const average_cost = Number(item.average_cost) || 0
           const loss_factor = Number(item.loss_factor) || 0
           
           // Calcular unit_cost: average_cost / volume * (1 + loss_factor/100)
           const unit_cost = volume > 0 ? (average_cost / volume) * (1 + loss_factor / 100) : 0
           
+          console.log('Processing item:', item.name, {
+            raw_quantity: item.quantity,
+            parsed_volume: volume,
+            average_cost,
+            unit_cost
+          })
+          
           return {
             ...item,
-            volume,
+            volume, // Mapeia quantity para volume
             average_cost,
             unit_cost: Number(item.unit_cost) || unit_cost, // Usa o do banco ou calcula
             loss_factor
           }
         })
+        console.log('Normalized data:', normalizedData[0]) // Debug
         setIngredients(normalizedData)
       }
     } catch (error) {
