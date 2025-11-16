@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageCircle, Send, Phone, Search, Info, AlertCircle, Settings, Mic } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
 import Link from 'next/link'
 
 type Contact = {
@@ -291,7 +292,7 @@ export default function MensagensPage() {
     if (loading) {
       return (
         <div className="w-full flex items-center justify-center bg-gray-100 rounded-lg" style={{ aspectRatio: '4/3' }}>
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-[var(--color-old-rose)]"></div>
+          <Spinner size="large" className="text-[var(--color-old-rose)]" />
         </div>
       )
     }
@@ -400,7 +401,7 @@ export default function MensagensPage() {
     if (loading) {
       return (
         <div className="flex items-center gap-2 min-w-[200px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-[var(--color-old-rose)]"></div>
+          <Spinner size="large" className="text-[var(--color-old-rose)]" />
           <span className="text-sm">Carregando áudio...</span>
         </div>
       )
@@ -502,7 +503,7 @@ export default function MensagensPage() {
         <div className="flex items-center justify-center flex-1">
           <div className="text-center space-y-4">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-[var(--color-lavender-blush)] rounded-full">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-[var(--color-lavender-blush)] border-t-[var(--color-old-rose)]"></div>
+              <Spinner size="large" className="text-[var(--color-old-rose)]" />
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Carregando suas mensagens...</h3>
@@ -671,7 +672,7 @@ export default function MensagensPage() {
               <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 bg-gray-50">
                 {loading ? (
                   <div className="flex items-center justify-center h-full">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-[var(--color-old-rose)]"></div>
+                    <Spinner size="large" className="text-[var(--color-old-rose)]" />
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center">

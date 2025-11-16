@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { User, Mail, Phone, MapPin, Camera, Save, SwitchCamera, CircleX, CreditCard } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { showToast } from '@/app/(dashboard)/layout'
@@ -413,7 +414,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-300 border-t-[var(--color-old-rose)]"></div>
+        <Spinner size="large" className="text-[var(--color-old-rose)]" />
       </div>
     )
   }

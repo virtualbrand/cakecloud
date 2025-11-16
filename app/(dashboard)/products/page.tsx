@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import Modal from '@/components/Modal'
+import { Spinner } from '@/components/ui/spinner'
 import { Info, Package, Layers, ShoppingBag, Search, ArrowDownAZ, ArrowDownZA } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { useProductSettings } from '@/hooks/useProductSettings'
 
 // Função para formatar números no padrão brasileiro
 const formatBRL = (value: number, decimals: number = 2): string => {
@@ -53,6 +55,53 @@ const formatCurrencyInput = (value: string): string => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })
+}
+
+// Função para abreviar unidades
+const getUnitAbbreviation = (unit: string): string => {
+  const abbreviations: { [key: string]: string } = {
+    'gramas': 'g',
+    'kg': 'kg',
+    'quilogramas': 'kg',
+    'ml': 'ml',
+    'mililitros': 'ml',
+    'litros': 'L',
+    'unidades': 'un'
+  }
+  return abbreviations[unit.toLowerCase()] || unit
+}
+
+// Função para formatar números removendo zeros desnecessários
+const formatSmartNumber = (value: number, maxDecimals: number = 5, isMonetary: boolean = false): string => {
+  // Valida se o valor é um número válido
+  if (typeof value !== 'number' || isNaN(value)) {
+    return '0'
+  }
+  
+  if (isMonetary) {
+    // Para valores monetários
+    const hasDecimals = value % 1 !== 0
+    
+    if (hasDecimals) {
+      // Se tem decimais, mantém no mínimo 2 casas
+      return value.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: maxDecimals
+      })
+    } else {
+      // Se é inteiro, não mostra decimais
+      return value.toLocaleString('pt-BR', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      })
+    }
+  } else {
+    // Para valores não monetários (quantidades)
+    return value.toLocaleString('pt-BR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: maxDecimals
+    })
+  }
 }
 
 type Ingredient = {
@@ -170,7 +219,7 @@ export default function ProductsPage() {
           }`}
         >
           <Package className="w-4 h-4" />
-          Insumos / Matérias-Primas
+          Insumos
         </button>
         <button
           onClick={() => setActiveTab('bases')}
@@ -209,11 +258,13 @@ export default function ProductsPage() {
 }
 
 function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { shouldOpenModal: boolean; onModalClose: () => void; searchQuery: string; sortOrder: 'asc' | 'desc' | null }) {
+  const settings = useProductSettings()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
+    type: 'ingredientes', // 'ingredientes' ou 'materiais'
     name: '',
     volume: '',
     unit: 'gramas',
@@ -228,7 +279,7 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
   useEffect(() => {
     if (shouldOpenModal) {
       setEditingId(null)
-      setFormData({ name: '', volume: '', unit: 'gramas', average_cost: '', loss_factor: '2' })
+      setFormData({ type: 'ingredientes', name: '', volume: '', unit: 'gramas', average_cost: '', loss_factor: '2' })
       setIsModalOpen(true)
       onModalClose()
     }
@@ -239,7 +290,24 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
       const response = await fetch('/api/products/ingredients')
       if (response.ok) {
         const data = await response.json()
-        setIngredients(data)
+        // Garantir que valores numéricos sejam convertidos corretamente
+        const normalizedData = data.map((item: any) => {
+          const volume = Number(item.volume) || 0
+          const average_cost = Number(item.average_cost) || 0
+          const loss_factor = Number(item.loss_factor) || 0
+          
+          // Calcular unit_cost: average_cost / volume * (1 + loss_factor/100)
+          const unit_cost = volume > 0 ? (average_cost / volume) * (1 + loss_factor / 100) : 0
+          
+          return {
+            ...item,
+            volume,
+            average_cost,
+            unit_cost: Number(item.unit_cost) || unit_cost, // Usa o do banco ou calcula
+            loss_factor
+          }
+        })
+        setIngredients(normalizedData)
       }
     } catch (error) {
       console.error('Erro ao buscar insumos:', error)
@@ -288,6 +356,7 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
         setIsModalOpen(false)
         setEditingId(null)
         setFormData({
+          type: 'ingredientes',
           name: '',
           volume: '',
           unit: 'gramas',
@@ -307,6 +376,7 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
   const handleEdit = (ingredient: Ingredient) => {
     setEditingId(ingredient.id)
     setFormData({
+      type: 'ingredientes', // Valor padrão ao editar
       name: ingredient.name,
       volume: ingredient.volume.toString(),
       unit: ingredient.unit,
@@ -320,6 +390,7 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
     setIsModalOpen(false)
     setEditingId(null)
     setFormData({
+      type: 'ingredientes',
       name: '',
       volume: '',
       unit: 'gramas',
@@ -353,10 +424,30 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Insumo *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Insumo *</label>
+              <select 
+                value={formData.type}
+                onChange={(e) => {
+                  const newType = e.target.value
+                  setFormData({ 
+                    ...formData, 
+                    type: newType,
+                    unit: newType === 'materiais' ? 'unidades' : 'gramas'
+                  })
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900"
+              >
+                <option value="ingredientes">Ingredientes</option>
+                <option value="materiais">Materiais</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {formData.type === 'ingredientes' ? 'Nome do Ingrediente *' : 'Nome do Material *'}
+              </label>
               <input
                 type="text"
-                placeholder="Ex: Farinha de Trigo"
+                placeholder={formData.type === 'ingredientes' ? 'Ex: Farinha de Trigo' : 'Ex: Embalagem 10x20cm'}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
@@ -379,7 +470,7 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                {formData.unit === 'unidades' ? 'Quantidade *' : 'Volume *'}
+                Quantidade *
               </label>
               <input
                 type="text"
@@ -413,18 +504,20 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fator de Perda (%) *</label>
-              <input
-                type="number"
-                step="0.1"
-                placeholder="2"
-                value={formData.loss_factor}
-                onChange={(e) => setFormData({ ...formData, loss_factor: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
-              />
-            </div>
+            {settings.showLossFactorIngredients && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fator de Perda (%) *</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="2"
+                  value={formData.loss_factor}
+                  onChange={(e) => setFormData({ ...formData, loss_factor: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                />
+              </div>
+            )}
           </div>
           <div className="flex gap-2 mt-6 justify-end">
             <button
@@ -447,7 +540,9 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
       {/* Table */}
       <div className="overflow-x-auto">
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Carregando...</div>
+          <div className="flex justify-center py-8">
+            <Spinner size="large" className="text-[var(--color-old-rose)]" />
+          </div>
         ) : filteredIngredients.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             {searchQuery ? 'Nenhum insumo encontrado' : 'Nenhum insumo cadastrado. Clique em "+ Novo Insumo" para começar.'}
@@ -456,9 +551,8 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">Item (Matéria-Prima)</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">Volume</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">Unidade</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">Insumo</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">Quantidade</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">Custo Médio</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">Custo Unitário</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700 text-sm">Fator de Perda</th>
@@ -469,11 +563,12 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
               {filteredIngredients.map((ingredient) => (
                 <tr key={ingredient.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 text-sm text-gray-900">{ingredient.name}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{formatInteger(ingredient.volume)}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{ingredient.unit}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">R$ {formatBRL(ingredient.average_cost, 2)}</td>
-                  <td className="py-3 px-4 text-sm text-gray-900 font-medium">R$ {formatBRL(ingredient.unit_cost, 5)}</td>
-                  <td className="py-3 px-4 text-sm text-gray-600">{formatBRL(ingredient.loss_factor, 2)}%</td>
+                  <td className="py-3 px-4 text-sm text-gray-600">
+                    {formatSmartNumber(ingredient.volume)} {getUnitAbbreviation(ingredient.unit)}
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-600">R$ {formatSmartNumber(ingredient.average_cost, 2, true)}</td>
+                  <td className="py-3 px-4 text-sm text-gray-900 font-medium">R$ {formatSmartNumber(ingredient.unit_cost, 5, true)}</td>
+                  <td className="py-3 px-4 text-sm text-gray-600">{formatSmartNumber(ingredient.loss_factor, 2, true)}%</td>
                   <td className="py-3 px-4 text-sm">
                     <button 
                       className="text-blue-600 hover:text-blue-800 mr-3 cursor-pointer" 
@@ -499,6 +594,7 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder 
 }
 
 function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { shouldOpenModal: boolean; onModalClose: () => void; searchQuery: string; sortOrder: 'asc' | 'desc' | null }) {
+  const settings = useProductSettings()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [bases, setBases] = useState<BaseRecipe[]>([])
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
@@ -694,18 +790,20 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fator de Perda (%) *</label>
-              <input
-                type="number"
-                step="0.1"
-                placeholder="2"
-                value={formData.loss_factor}
-                onChange={(e) => setFormData({ ...formData, loss_factor: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
-              />
-            </div>
+            {settings.showLossFactorBases && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fator de Perda (%) *</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="2"
+                  value={formData.loss_factor}
+                  onChange={(e) => setFormData({ ...formData, loss_factor: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Unidade *</label>
               <select 
@@ -827,7 +925,9 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
       {/* List of Bases */}
       <div className="space-y-4">
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Carregando...</div>
+          <div className="flex justify-center py-8">
+            <Spinner size="large" className="text-[var(--color-old-rose)]" />
+          </div>
         ) : filteredBases.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             {searchQuery ? 'Nenhuma base encontrada' : 'Nenhuma base cadastrada. Clique em "+ Nova Base" para começar.'}
@@ -838,12 +938,10 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="font-semibold text-gray-900">{base.name}</h3>
-                  <p className="text-sm text-gray-500">Fator de Perda: {formatBRL(base.loss_factor, 2)}%</p>
-                  {((base as any).unit || (base as any).yield) && (
+                  <p className="text-sm text-gray-500">Fator de Perda: {formatSmartNumber(base.loss_factor, 2, true)}%</p>
+                  {(base as any).yield && (base as any).unit && (
                     <p className="text-sm text-gray-500">
-                      {(base as any).unit && `Unidade: ${(base as any).unit}`}
-                      {(base as any).unit && (base as any).yield && ' | '}
-                      {(base as any).yield && `Rendimento: ${formatInteger(parseFloat((base as any).yield))}`}
+                      Rendimento: {formatInteger(parseFloat((base as any).yield))} {getUnitAbbreviation((base as any).unit)}
                     </p>
                   )}
                   {base.description && <p className="text-sm text-gray-600 mt-1">{base.description}</p>}
@@ -859,8 +957,7 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-2 px-2 font-medium text-gray-700 text-xs">Item</th>
-                        <th className="text-left py-2 px-2 font-medium text-gray-700 text-xs">Qtde</th>
-                        <th className="text-left py-2 px-2 font-medium text-gray-700 text-xs">Unidade</th>
+                        <th className="text-left py-2 px-2 font-medium text-gray-700 text-xs">Quantidade</th>
                         <th className="text-left py-2 px-2 font-medium text-gray-700 text-xs">Custo Unit.</th>
                         <th className="text-left py-2 px-2 font-medium text-gray-700 text-xs">Subtotal</th>
                       </tr>
@@ -871,36 +968,37 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
                         return (
                           <tr key={item.id} className="border-b border-gray-100">
                             <td className="py-2 px-2 text-gray-900">{item.ingredients?.name}</td>
-                            <td className="py-2 px-2 text-gray-600">{formatBRL(item.quantity, 2)}</td>
-                            <td className="py-2 px-2 text-gray-600">{item.ingredients?.unit}</td>
-                            <td className="py-2 px-2 text-gray-600">R$ {formatBRL(item.ingredients?.unit_cost || 0, 5)}</td>
-                            <td className="py-2 px-2 text-gray-900 font-medium">R$ {formatBRL(subtotal, 4)}</td>
+                            <td className="py-2 px-2 text-gray-600">
+                              {formatSmartNumber(item.quantity, 2)} {getUnitAbbreviation(item.ingredients?.unit || '')}
+                            </td>
+                            <td className="py-2 px-2 text-gray-600">R$ {formatSmartNumber(item.ingredients?.unit_cost || 0, 5, true)}</td>
+                            <td className="py-2 px-2 text-gray-900 font-medium">R$ {formatSmartNumber(subtotal, 4, true)}</td>
                           </tr>
                         )
                       })}
                       {/* Linha de Subtotal */}
                       <tr className="border-t-2 border-gray-300">
-                        <td colSpan={4} className="py-2 px-2 text-right font-medium text-gray-700">Subtotal dos Ingredientes:</td>
+                        <td colSpan={3} className="py-2 px-2 text-right font-medium text-gray-700">Subtotal dos Ingredientes:</td>
                         <td className="py-2 px-2 text-gray-900 font-semibold">
-                          R$ {formatBRL(base.base_recipe_items.reduce((sum: number, item: any) => 
+                          R$ {formatSmartNumber(base.base_recipe_items.reduce((sum: number, item: any) => 
                             sum + (item.quantity * (item.ingredients?.unit_cost || 0)), 0
-                          ), 4)}
+                          ), 4, true)}
                         </td>
                       </tr>
                       {/* Linha do Fator de Perda */}
                       <tr className="bg-yellow-50">
-                        <td colSpan={4} className="py-2 px-2 text-right font-medium text-gray-700">
-                          Fator de Perda ({formatBRL(base.loss_factor, 2)}%):
+                        <td colSpan={3} className="py-2 px-2 text-right font-medium text-gray-700">
+                          Fator de Perda ({formatSmartNumber(base.loss_factor, 2, true)}%):
                         </td>
                         <td className="py-2 px-2 text-orange-600 font-semibold">
-                          + R$ {formatBRL((base.base_recipe_items.reduce((sum: number, item: any) => 
+                          + R$ {formatSmartNumber((base.base_recipe_items.reduce((sum: number, item: any) => 
                             sum + (item.quantity * (item.ingredients?.unit_cost || 0)), 0
-                          ) * (base.loss_factor / 100)), 4)}
+                          ) * (base.loss_factor / 100)), 4, true)}
                         </td>
                       </tr>
                       {/* Linha de Total Final */}
                       <tr className="bg-gray-100 border-t-2 border-gray-300">
-                        <td colSpan={4} className="py-2 px-2 text-right font-bold text-gray-900">Custo Total:</td>
+                        <td colSpan={3} className="py-2 px-2 text-right font-bold text-gray-900">Custo Total:</td>
                         <td className="py-2 px-2 text-pink-600 font-bold text-base">
                           R$ {formatBRL(base.total_cost || 0, 2)}
                         </td>
@@ -932,6 +1030,7 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
 }
 
 function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { shouldOpenModal: boolean; onModalClose: () => void; searchQuery: string; sortOrder: 'asc' | 'desc' | null }) {
+  const settings = useProductSettings()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [products, setProducts] = useState<FinalProduct[]>([])
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
@@ -1181,18 +1280,20 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
                 <option value="other">Outro</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fator de Perda (%) *</label>
-              <input
-                type="number"
-                step="0.1"
-                placeholder="2"
-                value={formData.loss_factor}
-                onChange={(e) => setFormData({ ...formData, loss_factor: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
-              />
-            </div>
+            {settings.showLossFactorProducts && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fator de Perda (%) *</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="2"
+                  value={formData.loss_factor}
+                  onChange={(e) => setFormData({ ...formData, loss_factor: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Venda (R$)</label>
               <input
@@ -1327,7 +1428,9 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
       {/* Products List */}
       <div className="space-y-4">
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Carregando...</div>
+          <div className="flex justify-center py-8">
+            <Spinner size="large" className="text-[var(--color-old-rose)]" />
+          </div>
         ) : filteredProducts.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             {searchQuery ? 'Nenhum produto encontrado' : 'Nenhum produto cadastrado. Clique em "+ Novo Produto" para começar.'}
@@ -1347,7 +1450,7 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
                   <div>
                     <h3 className="font-semibold text-gray-900">{product.name}</h3>
                     <p className="text-sm text-gray-500">
-                      Categoria: {product.category} | Perda: {formatBRL(product.loss_factor, 2)}%
+                      Categoria: {product.category} | Perda: {formatSmartNumber(product.loss_factor, 2, true)}%
                     </p>
                     {product.description && <p className="text-sm text-gray-600 mt-1">{product.description}</p>}
                   </div>
