@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { User, Phone, Mail, ShoppingBag, X, Search, Info, ArrowDownAZ, ArrowDownZA, Camera, SwitchCamera, CircleX, Trash2, CircleAlert } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { showToast } from '@/app/(dashboard)/layout'
@@ -537,10 +538,16 @@ export default function CustomersPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="flex items-center gap-2 text-[var(--color-old-rose)] font-semibold">
-                    <ShoppingBag className="w-4 h-4" />
-                    {customer.orders_count} pedidos
-                  </div>
+                  {customer.orders_count && customer.orders_count > 0 ? (
+                    <Link 
+                      href={`/orders?customer=${encodeURIComponent(customer.name)}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-2 text-[var(--color-old-rose)] font-semibold hover:text-[var(--color-rosy-brown)] transition-colors"
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                      {customer.orders_count} pedidos
+                    </Link>
+                  ) : null}
                   <span className="text-xs text-gray-500 mt-1 block">
                     Cliente desde {formatDate(customer.created_at)}
                   </span>
