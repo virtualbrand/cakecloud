@@ -12,7 +12,9 @@ import {
   Bell, 
   Activity,
   MessageCircle,
-  MessageSquare
+  MessageSquare,
+  Calendar,
+  DollarSign
 } from 'lucide-react'
 
 const settingsNavigation = [
@@ -29,16 +31,10 @@ const settingsNavigation = [
     description: 'Configure suas preferências do sistema'
   },
   { 
-    name: 'WhatsApp', 
-    href: '/settings/whatsapp', 
-    icon: MessageSquare,
-    description: 'Conecte e configure seu WhatsApp'
-  },
-  { 
-    name: 'Atendimento', 
-    href: '/settings/atendimento', 
-    icon: MessageCircle,
-    description: 'Base de conhecimento do assistente'
+    name: 'Notificações', 
+    href: '/settings/notifications', 
+    icon: Bell,
+    description: 'Configure suas notificações'
   },
   { 
     name: 'Planos', 
@@ -65,10 +61,28 @@ const settingsNavigation = [
     description: 'Configurações de pedidos'
   },
   { 
-    name: 'Notificações', 
-    href: '/settings/notifications', 
-    icon: Bell,
-    description: 'Configure suas notificações'
+    name: 'Mensagens', 
+    href: '/settings/whatsapp', 
+    icon: MessageSquare,
+    description: 'Conecte e configure suas mensagens'
+  },
+  { 
+    name: 'Atendimento', 
+    href: '/settings/atendimento', 
+    icon: MessageCircle,
+    description: 'Base de conhecimento do assistente'
+  },
+  { 
+    name: 'Agenda', 
+    href: '/settings/agenda', 
+    icon: Calendar,
+    description: 'Configurações de agenda'
+  },
+  { 
+    name: 'Financeiro', 
+    href: '/settings/financeiro', 
+    icon: DollarSign,
+    description: 'Configurações financeiras'
   },
   { 
     name: 'Atividades', 

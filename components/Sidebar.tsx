@@ -50,8 +50,13 @@ export default function Sidebar({ position = 'sidebar' }: SidebarProps) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [showActivities, setShowActivities] = useState(true)
-  const [menuPosition, setMenuPosition] = useState<'sidebar' | 'header' | 'footer' | 'right'>(position)
+  const [menuPosition, setMenuPosition] = useState<'sidebar' | 'header' | 'footer' | 'right'>('sidebar')
   const supabase = createClient()
+
+  // Sincroniza menuPosition com o prop position
+  useEffect(() => {
+    setMenuPosition(position)
+  }, [position])
 
   useEffect(() => {
     const getUser = async () => {

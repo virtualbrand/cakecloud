@@ -1,25 +1,46 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Switch } from '@/components/ui/switch'
-import { X, Plus } from 'lucide-react'
+import { X, Plus, Info } from 'lucide-react'
+import { showToast } from '@/app/(dashboard)/layout'
+
+interface Category {
+  id: string
+  name: string
+}
 
 export default function ProductsSettingsPage() {
-  // Categorias padrão
-  const defaultCategories = ['Bolo', 'Cupcake', 'Cookie', 'Torta', 'Outro']
-  
-  // Inicializar categorias do localStorage
-  const [categories, setCategories] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('productCategories')
-      if (saved) {
-        return JSON.parse(saved)
-      }
-    }
-    return defaultCategories
-  })
+  // Categorias do banco de dados
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
 
   const [newCategory, setNewCategory] = useState('')
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  const fetchCategories = async () => {
+    try {
+      setLoadingCategories(true)
+      const response = await fetch('/api/products/categories')
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error)
+      showToast({
+        title: 'Erro',
+        message: 'Erro ao carregar categorias',
+        variant: 'error',
+        duration: 3000,
+      })
+    } finally {
+      setLoadingCategories(false)
+    }
+  }
 
   // Inicializar com valores do localStorage
   const [showLossFactorIngredients, setShowLossFactorIngredients] = useState(() => {
@@ -66,35 +87,119 @@ export default function ProductsSettingsPage() {
   const handleIngredientsToggle = (checked: boolean) => {
     setShowLossFactorIngredients(checked)
     updateSetting('showLossFactorIngredients', checked)
+    
+    showToast({
+      title: checked ? 'Fator de perda ativado' : 'Fator de perda desativado',
+      message: checked 
+        ? 'O campo de fator de perda será exibido ao cadastrar insumos'
+        : 'O campo de fator de perda foi ocultado para insumos',
+      variant: 'success',
+      duration: 3000,
+    })
   }
 
   const handleBasesToggle = (checked: boolean) => {
     setShowLossFactorBases(checked)
     updateSetting('showLossFactorBases', checked)
+    
+    showToast({
+      title: checked ? 'Fator de perda ativado' : 'Fator de perda desativado',
+      message: checked 
+        ? 'O campo de fator de perda será exibido ao cadastrar bases de preparo'
+        : 'O campo de fator de perda foi ocultado para bases de preparo',
+      variant: 'success',
+      duration: 3000,
+    })
   }
 
   const handleProductsToggle = (checked: boolean) => {
     setShowLossFactorProducts(checked)
     updateSetting('showLossFactorProducts', checked)
+    
+    showToast({
+      title: checked ? 'Fator de perda ativado' : 'Fator de perda desativado',
+      message: checked 
+        ? 'O campo de fator de perda será exibido ao cadastrar produtos finais'
+        : 'O campo de fator de perda foi ocultado para produtos finais',
+      variant: 'success',
+      duration: 3000,
+    })
   }
 
   // Funções para gerenciar categorias
-  const saveCategories = (newCategories: string[]) => {
-    setCategories(newCategories)
-    localStorage.setItem('productCategories', JSON.stringify(newCategories))
-  }
-
-  const addCategory = () => {
-    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
-      const updated = [...categories, newCategory.trim()]
-      saveCategories(updated)
-      setNewCategory('')
+  const addCategory = async () => {
+    if (!newCategory.trim()) return
+    
+    // Verifica se já existe
+    if (categories.some(cat => cat.name.toLowerCase() === newCategory.trim().toLowerCase())) {
+      showToast({
+        title: 'Atenção',
+        message: 'Esta categoria já existe',
+        variant: 'error',
+        duration: 3000,
+      })
+      return
+    }
+    
+    try {
+      const response = await fetch('/api/products/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newCategory.trim() })
+      })
+      
+      if (response.ok) {
+        const newCat = await response.json()
+        setCategories([...categories, newCat])
+        setNewCategory('')
+        
+        showToast({
+          title: 'Categoria adicionada!',
+          message: `A categoria "${newCat.name}" foi adicionada com sucesso`,
+          variant: 'success',
+          duration: 3000,
+        })
+      } else {
+        throw new Error('Erro ao adicionar categoria')
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar categoria:', error)
+      showToast({
+        title: 'Erro',
+        message: 'Erro ao adicionar categoria',
+        variant: 'error',
+        duration: 3000,
+      })
     }
   }
 
-  const removeCategory = (categoryToRemove: string) => {
-    const updated = categories.filter(cat => cat !== categoryToRemove)
-    saveCategories(updated)
+  const removeCategory = async (categoryId: string, categoryName: string) => {
+    try {
+      const response = await fetch(`/api/products/categories?id=${categoryId}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        setCategories(categories.filter(cat => cat.id !== categoryId))
+        
+        showToast({
+          title: 'Categoria removida!',
+          message: `A categoria "${categoryName}" foi removida`,
+          variant: 'success',
+          duration: 3000,
+        })
+      } else {
+        throw new Error('Erro ao remover categoria')
+      }
+    } catch (error) {
+      console.error('Erro ao remover categoria:', error)
+      showToast({
+        title: 'Erro',
+        message: 'Erro ao remover categoria',
+        variant: 'error',
+        duration: 3000,
+      })
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -106,10 +211,15 @@ export default function ProductsSettingsPage() {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Configurações de Produtos</h2>
-      <p className="text-gray-600 mb-6">
-        Configure a visibilidade e comportamento dos campos nos formulários de produtos.
-      </p>
+      <div className="flex items-center gap-2 mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Produtos</h2>
+        <div className="group relative">
+          <Info className="w-4 h-4 text-gray-400 cursor-help" />
+          <div className="invisible group-hover:visible absolute left-0 top-full mt-2 w-[330px] bg-white text-[var(--color-licorice)] text-sm rounded-lg shadow-lg z-50 border border-gray-200" style={{ padding: '25px 15px 30px 20px' }}>
+            Configure a visibilidade e comportamento dos campos nos formulários de produtos.
+          </div>
+        </div>
+      </div>
 
       {/* Seção de Categorias */}
       <div className="mb-8">
@@ -120,21 +230,27 @@ export default function ProductsSettingsPage() {
 
         {/* Lista de categorias */}
         <div className="flex flex-wrap gap-2 mb-4">
-          {categories.map((category) => (
-            <div
-              key={category}
-              className="flex items-center gap-2 bg-pink-100 text-pink-800 px-3 py-1.5 rounded-full text-sm font-medium"
-            >
-              <span>{category}</span>
-              <button
-                onClick={() => removeCategory(category)}
-                className="hover:bg-pink-200 rounded-full p-0.5 transition-colors"
-                title="Remover categoria"
+          {loadingCategories ? (
+            <p className="text-sm text-gray-500">Carregando categorias...</p>
+          ) : categories.length === 0 ? (
+            <p className="text-sm text-gray-500">Nenhuma categoria cadastrada</p>
+          ) : (
+            categories.map((category) => (
+              <div
+                key={category.id}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-[var(--color-lavender-blush)] text-[var(--color-old-rose)] border-[var(--color-old-rose)]"
               >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
+                <span className="text-xs font-medium">{category.name}</span>
+                <button
+                  onClick={() => removeCategory(category.id, category.name)}
+                  className="hover:opacity-70"
+                  title="Remover categoria"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Adicionar nova categoria */}
@@ -145,13 +261,14 @@ export default function ProductsSettingsPage() {
             onChange={(e) => setNewCategory(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Nova categoria"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 text-sm"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 text-sm bg-white"
           />
           <button
             onClick={addCategory}
-            className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+            disabled={!newCategory.trim() || categories.some(cat => cat.name.toLowerCase() === newCategory.trim().toLowerCase())}
+            className="btn-success disabled:opacity-50 disabled:cursor-not-allowed relative top-[-2px]"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 mr-1" />
             Adicionar
           </button>
         </div>
@@ -165,11 +282,11 @@ export default function ProductsSettingsPage() {
         </p>
 
         <div className="space-y-4">
-          {/* Insumo / Matéria-prima */}
+          {/* Insumos */}
           <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
             <div className="flex-1">
               <label htmlFor="loss-factor-ingredients" className="text-sm font-medium text-gray-900 cursor-pointer">
-                Insumo / Matéria-prima
+                Insumos
               </label>
               <p className="text-xs text-gray-500 mt-1">
                 Exibir campo de fator de perda ao cadastrar insumos

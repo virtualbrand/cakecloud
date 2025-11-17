@@ -3,11 +3,22 @@
 import { useState, useEffect, useRef } from 'react'
 import Modal from '@/components/Modal'
 import { Spinner } from '@/components/ui/spinner'
-import { Info, Package, Layers, ShoppingBag, Search, ArrowDownAZ, ArrowDownZA, Filter } from 'lucide-react'
+import { Info, Package, Layers, ShoppingBag, Search, ArrowDownAZ, ArrowDownZA, Filter, Check, Trash2, Plus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useProductSettings } from '@/hooks/useProductSettings'
+import { showToast } from '@/app/(dashboard)/layout'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 // Função para formatar números no padrão brasileiro
 const formatBRL = (value: number, decimals: number = 2): string => {
@@ -378,6 +389,7 @@ export default function ProductsPage() {
 function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder, typeFilter }: { shouldOpenModal: boolean; onModalClose: () => void; searchQuery: string; sortOrder: 'asc' | 'desc' | null; typeFilter: string[] }) {
   const settings = useProductSettings()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -484,8 +496,20 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder,
           setIngredients(ingredients.map(ing => 
             ing.id === editingId ? savedIngredient : ing
           ))
+          showToast({
+            title: 'Insumo atualizado!',
+            message: 'O insumo foi atualizado com sucesso.',
+            variant: 'success',
+            duration: 3000,
+          })
         } else {
           setIngredients([savedIngredient, ...ingredients])
+          showToast({
+            title: 'Insumo criado!',
+            message: `${savedIngredient.name} foi adicionado com sucesso.`,
+            variant: 'success',
+            duration: 3000,
+          })
         }
         
         setIsModalOpen(false)
@@ -500,11 +524,21 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder,
         })
       } else {
         const error = await response.json()
-        alert(error.error || 'Erro ao salvar insumo')
+        showToast({
+          title: 'Erro ao salvar insumo',
+          message: error.error || 'Não foi possível salvar o insumo. Tente novamente.',
+          variant: 'error',
+          duration: 4000,
+        })
       }
     } catch (error) {
       console.error('Erro ao salvar insumo:', error)
-      alert('Erro ao salvar insumo')
+      showToast({
+        title: 'Erro ao salvar insumo',
+        message: 'Não foi possível salvar o insumo. Tente novamente.',
+        variant: 'error',
+        duration: 4000,
+      })
     }
   }
 
@@ -525,11 +559,11 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder,
     setEditingId(ingredient.id)
     setFormData({
       type: ingredient.type || 'ingredientes',
-      name: ingredient.name,
-      volume: ingredient.volume.toString(),
-      unit: ingredient.unit,
-      average_cost: ingredient.average_cost.toString(),
-      loss_factor: ingredient.loss_factor.toString()
+      name: ingredient.name || '',
+      volume: ingredient.volume?.toString() || '',
+      unit: ingredient.unit || 'gramas',
+      average_cost: ingredient.average_cost?.toString() || '',
+      loss_factor: ingredient.loss_factor?.toString() || '2'
     })
     setIsModalOpen(true)
   }
@@ -551,7 +585,7 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder,
                     unit: newType === 'materiais' ? 'unidades' : 'gramas'
                   })
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 bg-white"
               >
                 <option value="ingredientes">Ingredientes</option>
                 <option value="materiais">Materiais</option>
@@ -567,7 +601,7 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder,
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
               />
             </div>
             <div>
@@ -575,7 +609,7 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder,
               <select 
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-500 bg-white"
               >
                 <option value="gramas">Gramas (g)</option>
                 <option value="kg">Quilogramas (kg)</option>
@@ -599,7 +633,7 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder,
                   setFormData(prev => ({ ...prev, volume: rawValue }))
                 }}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
               />
             </div>
             <div>
@@ -617,7 +651,7 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder,
                   setFormData(prev => ({ ...prev, average_cost: decimalValue }))
                 }}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
               />
             </div>
             {settings.showLossFactorIngredients && (
@@ -630,28 +664,84 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder,
                   value={formData.loss_factor}
                   onChange={(e) => setFormData({ ...formData, loss_factor: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
                 />
               </div>
             )}
           </div>
           <div className="flex gap-2 mt-6 justify-end">
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="btn-outline-grey"
-            >
-              Cancelar
-            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={() => setDeleteDialogOpen(true)}
+                className="btn-outline-danger"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir Insumo
+              </button>
+            )}
             <button 
               type="submit"
               className="btn-success"
             >
+              <Check className="w-4 h-4" />
               {editingId ? 'Atualizar Insumo' : 'Salvar Insumo'}
             </button>
           </div>
         </form>
       </Modal>
+
+      {/* Alert Dialog para Excluir Insumo */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Insumo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este insumo? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="btn-outline-grey">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="btn-danger"
+              onClick={async () => {
+                if (editingId) {
+                  try {
+                    const response = await fetch(`/api/products/ingredients/${editingId}`, {
+                      method: 'DELETE',
+                    })
+                    if (response.ok) {
+                      showToast({
+                        title: 'Insumo excluído!',
+                        message: 'O insumo foi removido com sucesso.',
+                        variant: 'success',
+                        duration: 3000,
+                      })
+                      setIsModalOpen(false)
+                      setDeleteDialogOpen(false)
+                      fetchIngredients()
+                    } else {
+                      throw new Error('Erro ao excluir insumo')
+                    }
+                  } catch (error) {
+                    console.error('Erro ao excluir:', error)
+                    showToast({
+                      title: 'Erro',
+                      message: 'Não foi possível excluir o insumo.',
+                      variant: 'error',
+                      duration: 3000,
+                    })
+                  }
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Table */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 overflow-x-auto">
@@ -701,6 +791,7 @@ function IngredientsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder,
 function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { shouldOpenModal: boolean; onModalClose: () => void; searchQuery: string; sortOrder: 'asc' | 'desc' | null }) {
   const settings = useProductSettings()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [bases, setBases] = useState<BaseRecipe[]>([])
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [loading, setLoading] = useState(true)
@@ -807,8 +898,20 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
           setBases(bases.map(base => 
             base.id === editingId ? savedBase : base
           ))
+          showToast({
+            title: 'Base atualizada!',
+            message: 'A base foi atualizada com sucesso.',
+            variant: 'success',
+            duration: 3000,
+          })
         } else {
           setBases([savedBase, ...bases])
+          showToast({
+            title: 'Base criada!',
+            message: `${savedBase.name} foi adicionada com sucesso.`,
+            variant: 'success',
+            duration: 3000,
+          })
         }
         
         setIsModalOpen(false)
@@ -823,11 +926,21 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
         })
       } else {
         const error = await response.json()
-        alert(error.error || 'Erro ao salvar base')
+        showToast({
+          title: 'Erro ao salvar base',
+          message: error.error || 'Não foi possível salvar a base. Tente novamente.',
+          variant: 'error',
+          duration: 4000,
+        })
       }
     } catch (error) {
       console.error('Erro ao salvar base:', error)
-      alert('Erro ao salvar base')
+      showToast({
+        title: 'Erro ao salvar base',
+        message: 'Não foi possível salvar a base. Tente novamente.',
+        variant: 'error',
+        duration: 4000,
+      })
     }
   }
 
@@ -860,25 +973,6 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
     })
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Deseja realmente excluir esta base?')) return
-
-    try {
-      const response = await fetch(`/api/products/bases?id=${id}`, {
-        method: 'DELETE'
-      })
-
-      if (response.ok) {
-        setBases(bases.filter(base => base.id !== id))
-      } else {
-        alert('Erro ao excluir base')
-      }
-    } catch (error) {
-      console.error('Erro ao excluir base:', error)
-      alert('Erro ao excluir base')
-    }
-  }
-
   return (
     <div>
       <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingId ? "Editar Base de Preparo" : "Nova Base de Preparo"}>
@@ -892,7 +986,7 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
               />
             </div>
             {settings.showLossFactorBases && (
@@ -905,7 +999,7 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
                   value={formData.loss_factor}
                   onChange={(e) => setFormData({ ...formData, loss_factor: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
                 />
               </div>
             )}
@@ -914,7 +1008,7 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
               <select 
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-500 bg-white"
               >
                 <option value="gramas">Gramas (g)</option>
                 <option value="kg">Quilogramas (kg)</option>
@@ -935,7 +1029,7 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
                   const rawValue = e.target.value.replace(/\D/g, '')
                   setFormData(prev => ({ ...prev, yield: rawValue }))
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
               />
             </div>
           </div>
@@ -946,7 +1040,7 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
               placeholder="Descrição da base de preparo"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
             />
           </div>
 
@@ -979,7 +1073,7 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
                 <select 
                   value={newItem.ingredient_id}
                   onChange={(e) => setNewItem({ ...newItem, ingredient_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-sm text-gray-900"
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-sm text-gray-500 bg-white"
                 >
                   <option value="">Selecione um insumo</option>
                   {ingredients.map((ing) => (
@@ -994,7 +1088,7 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
                   placeholder="Quantidade"
                   value={newItem.quantity}
                   onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500 bg-white"
                 />
               </div>
               <div>
@@ -1010,22 +1104,78 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
           </div>
 
           <div className="flex gap-2 mt-6 justify-end">
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="btn-outline-grey"
-            >
-              Cancelar
-            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={() => setDeleteDialogOpen(true)}
+                className="btn-outline-danger"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir Base
+              </button>
+            )}
             <button 
               type="submit"
               className="btn-success"
             >
+              <Check className="w-4 h-4" />
               {editingId ? 'Atualizar Base' : 'Salvar Base'}
             </button>
           </div>
         </form>
       </Modal>
+
+      {/* Alert Dialog para Excluir Base */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Base</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta base? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="btn-outline-grey">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="btn-danger"
+              onClick={async () => {
+                if (editingId) {
+                  try {
+                    const response = await fetch(`/api/products/bases/${editingId}`, {
+                      method: 'DELETE',
+                    })
+                    if (response.ok) {
+                      showToast({
+                        title: 'Base excluída!',
+                        message: 'A base foi removida com sucesso.',
+                        variant: 'success',
+                        duration: 3000,
+                      })
+                      setIsModalOpen(false)
+                      setDeleteDialogOpen(false)
+                      fetchBases()
+                    } else {
+                      throw new Error('Erro ao excluir base')
+                    }
+                  } catch (error) {
+                    console.error('Erro ao excluir:', error)
+                    showToast({
+                      title: 'Erro',
+                      message: 'Não foi possível excluir a base.',
+                      variant: 'error',
+                      duration: 3000,
+                    })
+                  }
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* List of Bases */}
       <div className="space-y-4">
@@ -1039,7 +1189,11 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
           </div>
         ) : (
           filteredBases.map((base) => (
-            <div key={base.id} className="bg-white border border-gray-200 rounded-lg p-4">
+            <div 
+              key={base.id} 
+              className="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow duration-200"
+              onClick={() => handleEdit(base)}
+            >
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="font-semibold text-gray-900">{base.name}</h3>
@@ -1112,20 +1266,6 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
                   </table>
                 </div>
               )}
-              <div className="flex justify-end gap-2 mt-3">
-                <button 
-                  onClick={() => handleEdit(base)}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium mr-3 cursor-pointer"
-                >
-                  Editar
-                </button>
-                <button 
-                  onClick={() => handleDelete(base.id)}
-                  className="text-red-600 hover:text-red-800 text-sm font-medium cursor-pointer"
-                >
-                  Excluir
-                </button>
-              </div>
             </div>
           ))
         )}
@@ -1137,11 +1277,13 @@ function BasesTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { s
 function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: { shouldOpenModal: boolean; onModalClose: () => void; searchQuery: string; sortOrder: 'asc' | 'desc' | null }) {
   const settings = useProductSettings()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [products, setProducts] = useState<FinalProduct[]>([])
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [bases, setBases] = useState<BaseRecipe[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [categories, setCategories] = useState<string[]>([])
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -1157,7 +1299,34 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
     fetchProducts()
     fetchIngredients()
     fetchBases()
+    loadCategories()
+    
+    // Atualiza categorias periodicamente (a cada 30 segundos)
+    const intervalId = setInterval(() => {
+      loadCategories()
+    }, 30000)
+    
+    return () => {
+      clearInterval(intervalId)
+    }
   }, [])
+
+  const loadCategories = async () => {
+    try {
+      const response = await fetch('/api/products/categories')
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data.map((cat: { id: string; name: string }) => cat.name))
+      } else {
+        // Fallback para categorias padrão em caso de erro
+        setCategories(['Bolo', 'Cupcake', 'Cookie', 'Torta', 'Outro'])
+      }
+    } catch (error) {
+      console.error('Erro ao carregar categorias:', error)
+      // Fallback para categorias padrão em caso de erro
+      setCategories(['Bolo', 'Cupcake', 'Cookie', 'Torta', 'Outro'])
+    }
+  }
 
   useEffect(() => {
     if (shouldOpenModal) {
@@ -1267,8 +1436,20 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
           setProducts(products.map(prod => 
             prod.id === editingId ? savedProduct : prod
           ))
+          showToast({
+            title: 'Produto atualizado!',
+            message: 'O produto foi atualizado com sucesso.',
+            variant: 'success',
+            duration: 3000,
+          })
         } else {
           setProducts([savedProduct, ...products])
+          showToast({
+            title: 'Produto criado!',
+            message: `${savedProduct.name} foi adicionado com sucesso.`,
+            variant: 'success',
+            duration: 3000,
+          })
         }
         
         setIsModalOpen(false)
@@ -1284,11 +1465,21 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
         })
       } else {
         const error = await response.json()
-        alert(error.error || 'Erro ao salvar produto')
+        showToast({
+          title: 'Erro ao salvar produto',
+          message: error.error || 'Não foi possível salvar o produto. Tente novamente.',
+          variant: 'error',
+          duration: 4000,
+        })
       }
     } catch (error) {
       console.error('Erro ao salvar produto:', error)
-      alert('Erro ao salvar produto')
+      showToast({
+        title: 'Erro ao salvar produto',
+        message: 'Não foi possível salvar o produto. Tente novamente.',
+        variant: 'error',
+        duration: 4000,
+      })
     }
   }
 
@@ -1334,30 +1525,12 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
     setIsModalOpen(true)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Deseja realmente excluir este produto?')) return
-
-    try {
-      const response = await fetch(`/api/products/pricing?id=${id}`, {
-        method: 'DELETE'
-      })
-
-      if (response.ok) {
-        setProducts(products.filter(prod => prod.id !== id))
-      } else {
-        alert('Erro ao excluir produto')
-      }
-    } catch (error) {
-      console.error('Erro ao excluir produto:', error)
-      alert('Erro ao excluir produto')
-    }
-  }
-
   return (
     <div>
-      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingId ? "Editar Produto Final" : "Novo Produto Final"} maxWidth="625px">
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingId ? "Editar Produto Final" : "Novo Produto Final"} maxWidth="750px">
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 mb-4">
+            {/* 1. Nome */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Produto *</label>
               <input
@@ -1366,80 +1539,31 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
               />
             </div>
+            
+            {/* 2. Categoria */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Categoria *</label>
               <select 
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-500 bg-white"
               >
-                <option value="">Selecione</option>
-                <option value="cake">Bolo</option>
-                <option value="cupcake">Cupcake</option>
-                <option value="cookie">Cookie</option>
-                <option value="pie">Torta</option>
-                <option value="other">Outro</option>
+                <option value="">Selecione uma categoria</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
               </select>
             </div>
-            {settings.showLossFactorProducts && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fator de Perda (%) *</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  placeholder="2"
-                  value={formData.loss_factor}
-                  onChange={(e) => setFormData({ ...formData, loss_factor: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
-                />
-              </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Venda (R$)</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                placeholder="0,00"
-                value={formData.selling_price ? formatCurrencyInput(formData.selling_price) : ''}
-                onChange={(e) => {
-                  // Remove tudo que não é número
-                  const rawValue = e.target.value.replace(/\D/g, '')
-                  // Converte centavos para formato decimal (divide por 100)
-                  const decimalValue = rawValue ? (parseInt(rawValue, 10) / 100).toFixed(2) : ''
-                  setFormData(prev => ({ ...prev, selling_price: decimalValue }))
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Margem de Lucro (%)</label>
-              <input
-                type="number"
-                step="0.1"
-                placeholder="60"
-                value={formData.profit_margin}
-                onChange={(e) => setFormData({ ...formData, profit_margin: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
-              />
-            </div>
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-            <textarea
-              rows={2}
-              placeholder="Descrição do produto"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500"
-            />
           </div>
 
-          <div className="pt-4 border-t border-gray-300">
+          {/* 3. Composição do Produto */}
+          <div className="mb-4 pt-4 border-t border-gray-300">
             <h4 className="font-medium text-gray-900 mb-3">Composição do Produto</h4>
             
             {/* Added items list */}
@@ -1448,7 +1572,7 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
                 {formData.items.map((item, index) => (
                   <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                     <span className="text-sm text-gray-900">
-                      {item.item_type === 'ingredient' ? '📦 Matéria-prima' : '🥄 Base'}: {getItemName(item)} - {item.quantity}
+                      {item.item_type === 'ingredient' ? '📦 Ingrediente' : '🥄 Material'}: {getItemName(item)} - {item.quantity}
                     </span>
                     <button
                       type="button"
@@ -1467,17 +1591,17 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
                 <select 
                   value={newItem.item_type}
                   onChange={(e) => setNewItem({ ...newItem, item_type: e.target.value, item_id: '' })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-sm text-gray-900"
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-sm text-gray-500 bg-white"
                 >
-                  <option value="ingredient">Matéria-prima</option>
-                  <option value="base_recipe">Base</option>
+                  <option value="ingredient">Ingrediente</option>
+                  <option value="base_recipe">Material</option>
                 </select>
               </div>
               <div className="md:col-span-2">
                 <select 
                   value={newItem.item_id}
                   onChange={(e) => setNewItem({ ...newItem, item_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-sm text-gray-900"
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-sm text-gray-500 bg-white"
                 >
                   <option value="">Selecione</option>
                   {newItem.item_type === 'ingredient' 
@@ -1497,38 +1621,142 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
                   placeholder="Quantidade"
                   value={newItem.quantity}
                   onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-sm text-gray-900 placeholder:text-gray-500 bg-white"
                 />
               </div>
               <div>
                 <button 
                   type="button"
                   onClick={handleAddItem}
-                  className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm"
+                  className="w-full btn-success"
                 >
-                  + Adicionar
+                  <Plus className="w-4 h-4" />
+                  Adicionar
                 </button>
               </div>
             </div>
           </div>
 
+          {/* 4. Preço de Venda */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Venda (R$)</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={formData.selling_price ? formatCurrencyInput(formData.selling_price) : ''}
+              onChange={(e) => {
+                // Remove tudo que não é número
+                const rawValue = e.target.value.replace(/\D/g, '')
+                // Converte centavos para formato decimal (divide por 100)
+                const decimalValue = rawValue ? (parseInt(rawValue, 10) / 100).toFixed(2) : ''
+                setFormData(prev => ({ ...prev, selling_price: decimalValue }))
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
+            />
+          </div>
+
+          {/* 5. Fator de Perda */}
+          {settings.showLossFactorProducts && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Fator de Perda (%) *</label>
+              <input
+                type="number"
+                step="0.1"
+                placeholder="2"
+                value={formData.loss_factor}
+                onChange={(e) => setFormData({ ...formData, loss_factor: e.target.value })}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
+              />
+            </div>
+          )}
+
+          {/* 6. Descrição */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+            <textarea
+              rows={2}
+              placeholder="Descrição do produto"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
+            />
+          </div>
+
           <div className="flex gap-2 mt-6 justify-end">
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="btn-outline-grey"
-            >
-              Cancelar
-            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={() => setDeleteDialogOpen(true)}
+                className="btn-outline-danger"
+              >
+                <Trash2 className="w-4 h-4" />
+                Excluir Produto
+              </button>
+            )}
             <button 
               type="submit"
               className="btn-success"
             >
+              <Check className="w-4 h-4" />
               {editingId ? 'Atualizar Produto' : 'Salvar Produto'}
             </button>
           </div>
         </form>
       </Modal>
+
+      {/* Alert Dialog para Excluir Produto */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Produto</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="btn-outline-grey">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="btn-danger"
+              onClick={async () => {
+                if (editingId) {
+                  try {
+                    const response = await fetch(`/api/products/${editingId}`, {
+                      method: 'DELETE',
+                    })
+                    if (response.ok) {
+                      showToast({
+                        title: 'Produto excluído!',
+                        message: 'O produto foi removido com sucesso.',
+                        variant: 'success',
+                        duration: 3000,
+                      })
+                      setIsModalOpen(false)
+                      setDeleteDialogOpen(false)
+                      fetchProducts()
+                    } else {
+                      throw new Error('Erro ao excluir produto')
+                    }
+                  } catch (error) {
+                    console.error('Erro ao excluir:', error)
+                    showToast({
+                      title: 'Erro',
+                      message: 'Não foi possível excluir o produto.',
+                      variant: 'error',
+                      duration: 3000,
+                    })
+                  }
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Products List */}
       <div className="space-y-4">
@@ -1578,7 +1806,7 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
                             {product.final_product_items.map((item: any) => (
                               <tr key={item.id} className="border-b border-gray-100">
                                 <td className="py-2 px-2 text-gray-600">
-                                  {item.item_type === 'ingredient' ? 'Matéria-prima' : 'Base'}
+                                  {item.item_type === 'ingredient' ? 'Ingrediente' : 'Material'}
                                 </td>
                                 <td className="py-2 px-2 text-gray-900">
                                   {item.item_type === 'ingredient' 
@@ -1622,28 +1850,6 @@ function ProductsTab({ shouldOpenModal, onModalClose, searchQuery, sortOrder }: 
                       </div>
                     )}
                   </div>
-                </div>
-                
-                {/* Botões de ação */}
-                <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleEdit(product)
-                    }}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium cursor-pointer"
-                  >
-                    Editar
-                  </button>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDelete(product.id)
-                    }}
-                    className="text-red-600 hover:text-red-800 text-sm font-medium cursor-pointer"
-                  >
-                    Excluir
-                  </button>
                 </div>
               </div>
             )

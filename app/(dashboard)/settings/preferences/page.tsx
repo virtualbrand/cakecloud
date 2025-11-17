@@ -1,8 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { Save, Layout } from 'lucide-react'
+import { Check, Layout, BrushCleaning, Trash2 } from 'lucide-react'
 import { showToast } from '@/app/(dashboard)/layout'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 // Função para obter o valor inicial do localStorage
 const getInitialMenuPosition = (): 'sidebar' | 'header' | 'footer' | 'right' => {
@@ -22,32 +32,48 @@ export default function PreferencesPage() {
   const [savedMenuPosition, setSavedMenuPosition] = useState<'sidebar' | 'header' | 'footer' | 'right'>(getInitialMenuPosition)
   const [showDailyBalance, setShowDailyBalance] = useState(getInitialShowDailyBalance)
   const [savedShowDailyBalance, setSavedShowDailyBalance] = useState(getInitialShowDailyBalance)
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
+  const [resetConfirmText, setResetConfirmText] = useState('')
 
   const hasChanges = menuPosition !== savedMenuPosition || showDailyBalance !== savedShowDailyBalance
+  const isResetConfirmed = resetConfirmText === 'ZERAR CONTA'
 
   const handleSave = () => {
     localStorage.setItem('menuPosition', menuPosition)
     localStorage.setItem('showDailyBalance', showDailyBalance.toString())
     
-    setSavedMenuPosition(menuPosition)
-    setSavedShowDailyBalance(showDailyBalance)
-
-    // Disparar evento para atualizar o layout imediatamente
+    // Disparar evento para atualizar o layout após salvar
     const event = new CustomEvent('menu-position-changed', {
       detail: { position: menuPosition }
     })
     window.dispatchEvent(event)
+    
+    setSavedMenuPosition(menuPosition)
+    setSavedShowDailyBalance(showDailyBalance)
 
     const positionLabels = {
       sidebar: 'Lateral Esquerda',
       right: 'Lateral Direita',
-      header: 'Topo (Header)',
-      footer: 'Rodapé (Footer)'
+      header: 'Cabeçalho',
+      footer: 'Rodapé'
     }
 
     showToast({
       title: 'Preferências salvas!',
       message: `Menu posicionado em: ${positionLabels[menuPosition]}`,
+      variant: 'success',
+      duration: 3000,
+    })
+  }
+
+  const handleResetAccount = () => {
+    // Aqui você implementaria a lógica de zerar a conta
+    console.log('Zerando conta...')
+    setIsResetDialogOpen(false)
+    setResetConfirmText('')
+    showToast({
+      title: 'Conta zerada!',
+      message: 'Todas as transações financeiras foram removidas.',
       variant: 'success',
       duration: 3000,
     })
@@ -100,7 +126,7 @@ export default function PreferencesPage() {
                   onChange={(e) => setMenuPosition(e.target.value as 'sidebar' | 'header' | 'footer' | 'right')}
                   className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
                 />
-                <span className="text-sm text-gray-700">Topo</span>
+                <span className="text-sm text-gray-700">Cabeçalho</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -166,8 +192,10 @@ export default function PreferencesPage() {
             <div className="ml-6">
               <button
                 type="button"
-                className="px-4 py-2 text-sm font-medium text-[var(--color-old-rose)] hover:text-[var(--color-rosy-brown)] transition"
+                onClick={() => setIsResetDialogOpen(true)}
+                className="btn-ghost-danger"
               >
+                <BrushCleaning className="w-4 h-4" />
                 Excluir minhas transações
               </button>
             </div>
@@ -180,14 +208,15 @@ export default function PreferencesPage() {
             <div className="flex-1">
               <h3 className="text-base font-semibold text-gray-900">Excluir conta</h3>
               <p className="text-sm text-gray-600 mt-1">
-                Já é hora de dizer tchau? Aqui você pode excluir sua conta definitivamente
+                Hora de dizer tchau? Aqui você pode excluir sua conta definitivamente
               </p>
             </div>
             <div className="ml-6">
               <button
                 type="button"
-                className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 transition"
+                className="btn-ghost-danger"
               >
+                <Trash2 className="w-4 h-4" />
                 Excluir conta por completo
               </button>
             </div>
@@ -199,18 +228,48 @@ export default function PreferencesPage() {
           <button
             onClick={handleSave}
             disabled={!hasChanges}
-            className={`inline-flex items-center gap-2 ${
-              !hasChanges 
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed rounded-full font-semibold text-sm'
-                : 'btn-success'
-            }`}
-            style={!hasChanges ? { padding: '8px 22px' } : undefined}
+            className="btn-success disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Save className="w-4 h-4" />
+            <Check className="w-4 h-4" />
             Salvar alterações
           </button>
         </div>
       </div>
+
+      {/* AlertDialog para Começar do Zero */}
+      <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Começar do zero</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação irá deletar toda sua movimentação financeira. Suas contas, clientes e produtos cadastrados permanecerão intactos.
+              <br /><br />
+              Para confirmar, digite <strong>ZERAR CONTA</strong> no campo abaixo:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <input
+              type="text"
+              value={resetConfirmText}
+              onChange={(e) => setResetConfirmText(e.target.value)}
+              placeholder="Digite ZERAR CONTA"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setResetConfirmText('')} className="rounded-full">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetAccount}
+              disabled={!isResetConfirmed}
+              className="btn-danger disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Confirmar e zerar conta
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

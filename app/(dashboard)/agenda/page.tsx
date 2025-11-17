@@ -33,13 +33,26 @@ import {
   Calendar,
   Grid3x3,
   List as ListIcon,
+  Columns3,
   ChevronLeft,
   ChevronRight,
   X,
   Info,
+  Trash2,
+  CircleAlert,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Combobox } from '@/components/ui/combobox'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 // Brazilian number formatting helper
 const formatBRL = (value: number, decimals: number = 2): string => {
@@ -241,7 +254,7 @@ function SortableOrderCard({ order, onClick }: { order: Order; onClick: () => vo
     <div
       ref={setNodeRef}
       style={style}
-      className="group cursor-pointer bg-white border-b border-gray-200 p-6 transition-colors hover:bg-gray-50"
+      className="bg-white border border-gray-200 rounded-lg p-5 mb-4 cursor-pointer hover:shadow-md transition-shadow duration-200"
       onClick={onClick}
     >
       <div className="flex items-start gap-4">
@@ -276,6 +289,104 @@ function SortableOrderCard({ order, onClick }: { order: Order; onClick: () => vo
   )
 }
 
+// Componente de card para visualização Kanban
+function KanbanOrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: order.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={onClick}
+      className="bg-white border border-gray-200 rounded-lg p-4 mb-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow duration-200"
+    >
+      <h4 className="font-medium text-gray-900 mb-2">{order.customer}</h4>
+      <p className="text-sm text-gray-600 mb-3">{order.product}</p>
+      
+      <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          <span>
+            {order.deliveryDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+            {' '}
+            {order.deliveryDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+        
+        {order.value && (
+          <span className="font-medium text-green-700">
+            R$ {order.value.toFixed(2).replace('.', ',')}
+          </span>
+        )}
+      </div>
+      
+      {(order.tags && order.tags.length > 0) && (
+        <div className="flex flex-wrap gap-1 mt-3">
+          {order.tags.map(tag => (
+            <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0.5">
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Componente de coluna droppable para Kanban
+function DroppableKanbanColumn({
+  id,
+  title,
+  color,
+  badgeColor,
+  count,
+  children,
+}: {
+  id: string
+  title: string
+  color: string
+  badgeColor: string
+  count: number
+  children: React.ReactNode
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+
+  return (
+    <div 
+      ref={setNodeRef}
+      className={`bg-gray-50 rounded-lg p-4 transition-colors ${isOver ? 'bg-gray-100 ring-2 ring-blue-400' : ''}`}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-full ${color}`}></div>
+          {title}
+        </h3>
+        <Badge variant="secondary" className={badgeColor}>
+          {count}
+        </Badge>
+      </div>
+      <div className="space-y-0 min-h-[200px]">
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export default function AgendaPage() {
   // Função para obter a data atual no fuso de São Paulo
   const getTodayInSaoPaulo = () => {
@@ -285,7 +396,7 @@ export default function AgendaPage() {
     return saoPauloTime
   }
 
-  const [view, setView] = useState<'month' | 'week' | 'day' | 'list'>('list')
+  const [view, setView] = useState<'month' | 'week' | 'day' | 'kanban' | 'list'>('list')
   const [dateFormat, setDateFormat] = useState<'short' | 'numeric' | 'long'>('numeric')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -298,6 +409,7 @@ export default function AgendaPage() {
   const [showTagFilter, setShowTagFilter] = useState(false)
   const [showCategoryFilter, setShowCategoryFilter] = useState(false)
   const [showStatusFilter, setShowStatusFilter] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [loadingCustomers, setLoadingCustomers] = useState(true)
@@ -346,11 +458,11 @@ export default function AgendaPage() {
     if (!over) return
 
     const orderId = active.id as string
-    const targetDateStr = over.id as string
+    const targetId = over.id as string
 
     // Se foi arrastado para uma célula de data (no calendário)
-    if (targetDateStr.startsWith('date-')) {
-      const targetDate = new Date(targetDateStr.replace('date-', ''))
+    if (targetId.startsWith('date-')) {
+      const targetDate = new Date(targetId.replace('date-', ''))
       
       setOrders((items) => {
         return items.map((item) => {
@@ -372,6 +484,32 @@ export default function AgendaPage() {
       showToast({
         title: 'Pedido reagendado!',
         message: `Pedido movido para ${targetDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}`,
+        variant: 'success',
+        duration: 3000,
+      })
+    } else if (targetId === 'pending' || targetId === 'in-progress' || targetId === 'completed') {
+      // Mudança de status no Kanban
+      setOrders((items) => {
+        return items.map((item) => {
+          if (item.id === orderId) {
+            return {
+              ...item,
+              status: targetId as 'pending' | 'in-progress' | 'completed',
+            }
+          }
+          return item
+        })
+      })
+
+      const statusNames = {
+        pending: 'Pendente',
+        'in-progress': 'Em Andamento',
+        completed: 'Concluído'
+      }
+
+      showToast({
+        title: 'Status atualizado!',
+        message: `Pedido movido para ${statusNames[targetId as keyof typeof statusNames]}`,
         variant: 'success',
         duration: 3000,
       })
@@ -402,10 +540,13 @@ export default function AgendaPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [customersRes, productsRes, ordersRes] = await Promise.all([
+        const [customersRes, productsRes, ordersRes, statusesRes, categoriesRes, tagsRes] = await Promise.all([
           fetch('/api/customers'),
           fetch('/api/products'),
-          fetch('/api/orders')
+          fetch('/api/orders'),
+          fetch('/api/agenda/statuses'),
+          fetch('/api/agenda/categories'),
+          fetch('/api/agenda/tags')
         ])
         
         if (customersRes.ok) {
@@ -428,6 +569,21 @@ export default function AgendaPage() {
               deliveryDate: new Date(order.delivery_date)
             }))
           setOrders(ordersWithDates)
+        }
+
+        if (statusesRes.ok) {
+          const statusesData = await statusesRes.json()
+          setAllStatuses(statusesData)
+        }
+
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json()
+          setAllCategories(categoriesData)
+        }
+
+        if (tagsRes.ok) {
+          const tagsData = await tagsRes.json()
+          setAllTags(tagsData)
         }
       } catch (error) {
         console.error('Erro ao carregar dados:', error)
@@ -482,26 +638,9 @@ export default function AgendaPage() {
   }, [showTagFilter, showCategoryFilter, showStatusFilter])
 
   const [orders, setOrders] = useState<Order[]>([])
-
-  // Categorias e Tags configuradas (TODO: buscar do banco de dados)
-  const allCategories = [
-    { id: '1', name: 'Bolos', color: 'pink' },
-    { id: '2', name: 'Doces', color: 'purple' },
-    { id: '3', name: 'Salgados', color: 'orange' },
-  ]
-  
-  const allTags = [
-    { id: '1', name: 'Urgente', color: 'red' },
-    { id: '2', name: 'Personalizado', color: 'blue' },
-    { id: '3', name: 'Festa', color: 'yellow' },
-    { id: '4', name: 'Aniversário', color: 'green' },
-  ]
-
-  const allStatus = [
-    { id: 'pending', name: 'Pendente', color: 'yellow' },
-    { id: 'in-progress', name: 'Em Produção', color: 'blue' },
-    { id: 'completed', name: 'Concluído', color: 'green' },
-  ]
+  const [allStatuses, setAllStatuses] = useState<Array<{ id: string; name: string; color: string }>>([])
+  const [allCategories, setAllCategories] = useState<Array<{ id: string; name: string; color: string }>>([])
+  const [allTags, setAllTags] = useState<Array<{ id: string; name: string; color: string }>>([])
 
   const getColorClass = (color: string) => {
     const colorMap: Record<string, string> = {
@@ -660,34 +799,33 @@ export default function AgendaPage() {
   const handleDelete = async () => {
     if (!selectedOrder?.id) return
     
-    if (confirm('Tem certeza que deseja excluir este pedido?')) {
-      try {
-        const response = await fetch(`/api/orders?id=${selectedOrder.id}`, {
-          method: 'DELETE',
-        })
+    try {
+      const response = await fetch(`/api/orders?id=${selectedOrder.id}`, {
+        method: 'DELETE',
+      })
 
-        if (!response.ok) {
-          throw new Error('Erro ao deletar pedido')
-        }
-
-        // Remove from orders list
-        setOrders(orders.filter(o => o.id !== selectedOrder.id))
-        showToast({
-          title: 'Pedido excluído!',
-          message: 'O pedido foi excluído com sucesso.',
-          variant: 'success',
-          duration: 3000,
-        })
-        handleCloseModal()
-      } catch (error) {
-        console.error('Erro ao deletar pedido:', error)
-        showToast({
-          title: 'Erro ao excluir pedido',
-          message: 'Não foi possível excluir o pedido. Tente novamente.',
-          variant: 'error',
-          duration: 4000,
-        })
+      if (!response.ok) {
+        throw new Error('Erro ao deletar pedido')
       }
+
+      // Remove from orders list
+      setOrders(orders.filter(o => o.id !== selectedOrder.id))
+      setDeleteDialogOpen(false)
+      showToast({
+        title: 'Pedido excluído!',
+        message: 'O pedido foi excluído com sucesso.',
+        variant: 'success',
+        duration: 3000,
+      })
+      handleCloseModal()
+    } catch (error) {
+      console.error('Erro ao deletar pedido:', error)
+      showToast({
+        title: 'Erro ao excluir pedido',
+        message: 'Não foi possível excluir o pedido. Tente novamente.',
+        variant: 'error',
+        duration: 4000,
+      })
     }
   }
 
@@ -963,125 +1101,131 @@ export default function AgendaPage() {
             />
           </div>
 
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="sm"
-              className="filter-button h-10 cursor-pointer"
-              onClick={() => {
-                setShowStatusFilter(!showStatusFilter)
-                setShowTagFilter(false)
-                setShowCategoryFilter(false)
-              }}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Status
-              {allStatus.filter(s => activeFilters.includes(s.id)).length > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-                  {allStatus.filter(s => activeFilters.includes(s.id)).length}
-                </Badge>
+          {allStatuses.length > 0 && (
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="filter-button h-10 cursor-pointer"
+                onClick={() => {
+                  setShowStatusFilter(!showStatusFilter)
+                  setShowTagFilter(false)
+                  setShowCategoryFilter(false)
+                }}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Status
+                {allStatuses.filter(s => activeFilters.includes(s.id)).length > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+                    {allStatuses.filter(s => activeFilters.includes(s.id)).length}
+                  </Badge>
+                )}
+              </Button>
+              
+              {showStatusFilter && (
+                <div className="filter-dropdown absolute top-full mt-2 bg-[var(--color-bg-modal)] border border-gray-200 rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
+                  {allStatuses.map(status => (
+                    <button
+                      key={status.id}
+                      onClick={() => toggleFilter(status.id)}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
+                    >
+                      <Badge className={`${getColorClass(status.color)} border text-xs px-2 py-1`}>
+                        {status.name}
+                      </Badge>
+                      {activeFilters.includes(status.id) && (
+                        <span className="text-xs text-green-600 font-semibold">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               )}
-            </Button>
-            
-            {showStatusFilter && (
-              <div className="filter-dropdown absolute top-full mt-2 bg-[var(--color-bg-modal)] border border-gray-200 rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
-                {allStatus.map(status => (
-                  <button
-                    key={status.id}
-                    onClick={() => toggleFilter(status.id)}
-                    className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
-                  >
-                    <Badge className={`${getColorClass(status.color)} border text-xs px-2 py-1`}>
-                      {status.name}
-                    </Badge>
-                    {activeFilters.includes(status.id) && (
-                      <span className="text-xs text-green-600 font-semibold">✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="sm"
-              className="filter-button h-10 cursor-pointer"
-              onClick={() => {
-                setShowCategoryFilter(!showCategoryFilter)
-                setShowTagFilter(false)
-                setShowStatusFilter(false)
-              }}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Categorias
-              {allCategories.filter(c => activeFilters.includes(c.name)).length > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-                  {allCategories.filter(c => activeFilters.includes(c.name)).length}
-                </Badge>
+          {allCategories.length > 0 && (
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="filter-button h-10 cursor-pointer"
+                onClick={() => {
+                  setShowCategoryFilter(!showCategoryFilter)
+                  setShowTagFilter(false)
+                  setShowStatusFilter(false)
+                }}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Categorias
+                {allCategories.filter(c => activeFilters.includes(c.name)).length > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+                    {allCategories.filter(c => activeFilters.includes(c.name)).length}
+                  </Badge>
+                )}
+              </Button>
+              
+              {showCategoryFilter && (
+                <div className="filter-dropdown absolute top-full mt-2 bg-[var(--color-bg-modal)] border border-gray-200 rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
+                  {allCategories.map(category => (
+                    <button
+                      key={category.id}
+                      onClick={() => toggleFilter(category.name)}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
+                    >
+                      <Badge className={`${getColorClass(category.color)} border text-xs px-2 py-1`}>
+                        {category.name}
+                      </Badge>
+                      {activeFilters.includes(category.name) && (
+                        <span className="text-xs text-green-600 font-semibold">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               )}
-            </Button>
-            
-            {showCategoryFilter && (
-              <div className="filter-dropdown absolute top-full mt-2 bg-[var(--color-bg-modal)] border border-gray-200 rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
-                {allCategories.map(category => (
-                  <button
-                    key={category.id}
-                    onClick={() => toggleFilter(category.name)}
-                    className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
-                  >
-                    <Badge className={`${getColorClass(category.color)} border text-xs px-2 py-1`}>
-                      {category.name}
-                    </Badge>
-                    {activeFilters.includes(category.name) && (
-                      <span className="text-xs text-green-600 font-semibold">✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="sm"
-              className="filter-button h-10 cursor-pointer"
-              onClick={() => {
-                setShowTagFilter(!showTagFilter)
-                setShowCategoryFilter(false)
-                setShowStatusFilter(false)
-              }}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Tags
-              {allTags.filter(t => activeFilters.includes(t.name)).length > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-                  {allTags.filter(t => activeFilters.includes(t.name)).length}
-                </Badge>
+          {allTags.length > 0 && (
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="filter-button h-10 cursor-pointer"
+                onClick={() => {
+                  setShowTagFilter(!showTagFilter)
+                  setShowCategoryFilter(false)
+                  setShowStatusFilter(false)
+                }}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Tags
+                {allTags.filter(t => activeFilters.includes(t.name)).length > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+                    {allTags.filter(t => activeFilters.includes(t.name)).length}
+                  </Badge>
+                )}
+              </Button>
+              
+              {showTagFilter && (
+                <div className="filter-dropdown absolute top-full mt-2 bg-[var(--color-bg-modal)] border border-gray-200 rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
+                  {allTags.map(tag => (
+                    <button
+                      key={tag.id}
+                      onClick={() => toggleFilter(tag.name)}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
+                    >
+                      <Badge className={`${getColorClass(tag.color)} border text-xs px-2 py-1`}>
+                        {tag.name}
+                      </Badge>
+                      {activeFilters.includes(tag.name) && (
+                        <span className="text-xs text-green-600 font-semibold">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               )}
-            </Button>
-            
-            {showTagFilter && (
-              <div className="filter-dropdown absolute top-full mt-2 bg-[var(--color-bg-modal)] border border-gray-200 rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
-                {allTags.map(tag => (
-                  <button
-                    key={tag.id}
-                    onClick={() => toggleFilter(tag.name)}
-                    className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
-                  >
-                    <Badge className={`${getColorClass(tag.color)} border text-xs px-2 py-1`}>
-                      {tag.name}
-                    </Badge>
-                    {activeFilters.includes(tag.name) && (
-                      <span className="text-xs text-green-600 font-semibold">✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {activeFilters.length > 0 && (
             <Button
@@ -1101,7 +1245,7 @@ export default function AgendaPage() {
             {activeFilters.map(filter => {
               const tag = allTags.find(t => t.name === filter)
               const category = allCategories.find(c => c.name === filter)
-              const status = allStatus.find(s => s.id === filter)
+              const status = allStatuses.find(s => s.id === filter)
               const item = tag || category || status
               
               return (
@@ -1136,6 +1280,15 @@ export default function AgendaPage() {
           Lista
         </Button>
         <Button 
+          variant={view === 'kanban' ? 'secondary' : 'ghost'} 
+          size="sm"
+          onClick={() => setView('kanban')}
+          className={view === 'kanban' ? 'bg-white shadow-sm' : 'hover:bg-white/80 hover:shadow-sm cursor-pointer transition-all'}
+        >
+          <Columns3 className="h-4 w-4 mr-2" />
+          Kanban
+        </Button>
+        <Button 
           variant={view === 'day' ? 'secondary' : 'ghost'} 
           size="sm"
           onClick={() => setView('day')}
@@ -1163,7 +1316,7 @@ export default function AgendaPage() {
           Mês
         </Button>
 
-        {view !== 'list' && (
+        {view !== 'list' && view !== 'kanban' && (
           <>
             <Button
               variant="ghost"
@@ -1229,16 +1382,14 @@ export default function AgendaPage() {
                         items={ordersForDate.map(o => o.id)}
                         strategy={verticalListSortingStrategy}
                       >
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                          <div className="divide-y divide-gray-200">
-                            {ordersForDate.map(order => (
-                              <SortableOrderCard
-                                key={order.id}
-                                order={order}
-                                onClick={() => handleOrderClick(order)}
-                              />
-                            ))}
-                          </div>
+                        <div className="space-y-0">
+                          {ordersForDate.map(order => (
+                            <SortableOrderCard
+                              key={order.id}
+                              order={order}
+                              onClick={() => handleOrderClick(order)}
+                            />
+                          ))}
                         </div>
                       </SortableContext>
                     </DndContext>
@@ -1248,6 +1399,109 @@ export default function AgendaPage() {
             </>
           )}
         </div>
+      )}
+
+      {view === 'kanban' && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="grid grid-cols-3 gap-6">
+            {/* Coluna Pendente */}
+            <DroppableKanbanColumn
+              id="pending"
+              title="Pendente"
+              color="bg-yellow-500"
+              badgeColor="bg-yellow-100 text-yellow-800"
+              count={filteredOrders.filter(o => o.status === 'pending').length}
+            >
+              <SortableContext
+                items={filteredOrders.filter(o => o.status === 'pending').map(o => o.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {filteredOrders
+                  .filter(order => order.status === 'pending')
+                  .sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime())
+                  .map(order => (
+                    <KanbanOrderCard
+                      key={order.id}
+                      order={order}
+                      onClick={() => handleOrderClick(order)}
+                    />
+                  ))}
+                {filteredOrders.filter(o => o.status === 'pending').length === 0 && (
+                  <div className="text-center py-12 text-gray-400">
+                    <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Nenhuma tarefa</p>
+                  </div>
+                )}
+              </SortableContext>
+            </DroppableKanbanColumn>
+
+            {/* Coluna Em Andamento */}
+            <DroppableKanbanColumn
+              id="in-progress"
+              title="Em Andamento"
+              color="bg-blue-500"
+              badgeColor="bg-blue-100 text-blue-800"
+              count={filteredOrders.filter(o => o.status === 'in-progress').length}
+            >
+              <SortableContext
+                items={filteredOrders.filter(o => o.status === 'in-progress').map(o => o.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {filteredOrders
+                  .filter(order => order.status === 'in-progress')
+                  .sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime())
+                  .map(order => (
+                    <KanbanOrderCard
+                      key={order.id}
+                      order={order}
+                      onClick={() => handleOrderClick(order)}
+                    />
+                  ))}
+                {filteredOrders.filter(o => o.status === 'in-progress').length === 0 && (
+                  <div className="text-center py-12 text-gray-400">
+                    <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Nenhuma tarefa</p>
+                  </div>
+                )}
+              </SortableContext>
+            </DroppableKanbanColumn>
+
+            {/* Coluna Concluído */}
+            <DroppableKanbanColumn
+              id="completed"
+              title="Concluído"
+              color="bg-green-500"
+              badgeColor="bg-green-100 text-green-800"
+              count={filteredOrders.filter(o => o.status === 'completed').length}
+            >
+              <SortableContext
+                items={filteredOrders.filter(o => o.status === 'completed').map(o => o.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {filteredOrders
+                  .filter(order => order.status === 'completed')
+                  .sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime())
+                  .map(order => (
+                    <KanbanOrderCard
+                      key={order.id}
+                      order={order}
+                      onClick={() => handleOrderClick(order)}
+                    />
+                  ))}
+                {filteredOrders.filter(o => o.status === 'completed').length === 0 && (
+                  <div className="text-center py-12 text-gray-400">
+                    <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Nenhuma tarefa</p>
+                  </div>
+                )}
+              </SortableContext>
+            </DroppableKanbanColumn>
+          </div>
+        </DndContext>
       )}
 
       {view === 'month' && (
@@ -1587,7 +1841,7 @@ export default function AgendaPage() {
                 value={formData.status}
                 onChange={handleInputChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-500 bg-white"
               >
                 <option value="pending">Pendente</option>
                 <option value="in-progress">Em Andamento</option>
@@ -1652,19 +1906,13 @@ export default function AgendaPage() {
               {isEditing && (
                 <button
                   type="button"
-                  onClick={handleDelete}
-                  className="btn-danger flex-1"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  className="btn-outline-danger flex-1 flex items-center justify-center gap-2"
                 >
+                  <Trash2 className="h-4 w-4" />
                   Excluir
                 </button>
               )}
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="btn-outline-grey flex-1"
-              >
-                Cancelar
-              </button>
               <button
                 type="submit"
                 className="btn-success flex-1"
@@ -1786,7 +2034,7 @@ export default function AgendaPage() {
                   category: e.target.value as 'cake' | 'cupcake' | 'cookie' | 'pie' | 'other'
                 }))}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-500 bg-white"
               >
                 <option value="cake">Bolo</option>
                 <option value="cupcake">Cupcake</option>
@@ -1845,6 +2093,36 @@ export default function AgendaPage() {
           </form>
         </Modal>
       )}
+
+      {/* Alert Dialog para Exclusão */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <div className="flex flex-col gap-2 max-sm:items-center sm:flex-row sm:gap-4">
+            <div
+              className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border"
+              aria-hidden="true"
+            >
+              <CircleAlert className="opacity-80" size={16} strokeWidth={2} />
+            </div>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Essa ação não pode ser desfeita. A tarefa será permanentemente excluída do sistema.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="btn-outline-grey">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              className="btn-danger flex items-center gap-2"
+              onClick={handleDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

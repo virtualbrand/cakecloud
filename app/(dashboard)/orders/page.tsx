@@ -37,9 +37,21 @@ import {
   ChevronRight,
   X,
   Info,
+  Trash2,
+  CircleAlert,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Combobox } from '@/components/ui/combobox'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 // Brazilian number formatting helper
 const formatBRL = (value: number, decimals: number = 2): string => {
@@ -241,7 +253,7 @@ function SortableOrderCard({ order, onClick }: { order: Order; onClick: () => vo
     <div
       ref={setNodeRef}
       style={style}
-      className="group cursor-pointer bg-white border-b border-gray-200 p-6 transition-colors hover:bg-gray-50"
+      className="bg-white border border-gray-200 rounded-lg p-5 mb-4 cursor-pointer hover:shadow-md transition-shadow duration-200"
       onClick={onClick}
     >
       <div className="flex items-start gap-4">
@@ -298,6 +310,7 @@ export default function OrdersPage() {
   const [showTagFilter, setShowTagFilter] = useState(false)
   const [showCategoryFilter, setShowCategoryFilter] = useState(false)
   const [showStatusFilter, setShowStatusFilter] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [loadingCustomers, setLoadingCustomers] = useState(true)
@@ -483,25 +496,51 @@ export default function OrdersPage() {
 
   const [orders, setOrders] = useState<Order[]>([])
 
-  // Categorias e Tags configuradas (TODO: buscar do banco de dados)
-  const allCategories = [
-    { id: '1', name: 'Bolos', color: 'pink' },
-    { id: '2', name: 'Doces', color: 'purple' },
-    { id: '3', name: 'Salgados', color: 'orange' },
-  ]
-  
-  const allTags = [
-    { id: '1', name: 'Urgente', color: 'red' },
-    { id: '2', name: 'Personalizado', color: 'blue' },
-    { id: '3', name: 'Festa', color: 'yellow' },
-    { id: '4', name: 'Aniversário', color: 'green' },
-  ]
+  // Carregar Status, Categorias e Tags do banco de dados
+  const [allStatus, setAllStatus] = useState<Array<{ id: string; name: string; color: string }>>([])
+  const [allCategories, setAllCategories] = useState<Array<{ id: string; name: string; color: string }>>([])
+  const [allTags, setAllTags] = useState<Array<{ id: string; name: string; color: string }>>([])
 
-  const allStatus = [
-    { id: 'pending', name: 'Pendente', color: 'yellow' },
-    { id: 'in-progress', name: 'Em Produção', color: 'blue' },
-    { id: 'completed', name: 'Concluído', color: 'green' },
-  ]
+  useEffect(() => {
+    // Carregar configurações do banco de dados
+    const loadSettings = async () => {
+      try {
+        const [statusesRes, categoriesRes, tagsRes] = await Promise.all([
+          fetch('/api/orders/statuses'),
+          fetch('/api/orders/categories'),
+          fetch('/api/orders/tags')
+        ])
+
+        if (statusesRes.ok) {
+          const data = await statusesRes.json()
+          setAllStatus(data)
+        }
+        if (categoriesRes.ok) {
+          const data = await categoriesRes.json()
+          setAllCategories(data)
+        }
+        if (tagsRes.ok) {
+          const data = await tagsRes.json()
+          setAllTags(data)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar configurações:', error)
+      }
+    }
+
+    loadSettings()
+
+    // Recarregar quando houver mudanças nas configurações
+    const handleFocus = () => {
+      loadSettings()
+    }
+
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [])
 
   const getColorClass = (color: string) => {
     const colorMap: Record<string, string> = {
@@ -660,34 +699,33 @@ export default function OrdersPage() {
   const handleDelete = async () => {
     if (!selectedOrder?.id) return
     
-    if (confirm('Tem certeza que deseja excluir este pedido?')) {
-      try {
-        const response = await fetch(`/api/orders?id=${selectedOrder.id}`, {
-          method: 'DELETE',
-        })
+    try {
+      const response = await fetch(`/api/orders?id=${selectedOrder.id}`, {
+        method: 'DELETE',
+      })
 
-        if (!response.ok) {
-          throw new Error('Erro ao deletar pedido')
-        }
-
-        // Remove from orders list
-        setOrders(orders.filter(o => o.id !== selectedOrder.id))
-        showToast({
-          title: 'Pedido excluído!',
-          message: 'O pedido foi excluído com sucesso.',
-          variant: 'success',
-          duration: 3000,
-        })
-        handleCloseModal()
-      } catch (error) {
-        console.error('Erro ao deletar pedido:', error)
-        showToast({
-          title: 'Erro ao excluir pedido',
-          message: 'Não foi possível excluir o pedido. Tente novamente.',
-          variant: 'error',
-          duration: 4000,
-        })
+      if (!response.ok) {
+        throw new Error('Erro ao deletar pedido')
       }
+
+      // Remove from orders list
+      setOrders(orders.filter(o => o.id !== selectedOrder.id))
+      setDeleteDialogOpen(false)
+      showToast({
+        title: 'Pedido excluído!',
+        message: 'O pedido foi excluído com sucesso.',
+        variant: 'success',
+        duration: 3000,
+      })
+      handleCloseModal()
+    } catch (error) {
+      console.error('Erro ao deletar pedido:', error)
+      showToast({
+        title: 'Erro ao excluir pedido',
+        message: 'Não foi possível excluir o pedido. Tente novamente.',
+        variant: 'error',
+        duration: 4000,
+      })
     }
   }
 
@@ -963,125 +1001,131 @@ export default function OrdersPage() {
             />
           </div>
 
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="sm"
-              className="filter-button h-10 cursor-pointer"
-              onClick={() => {
-                setShowStatusFilter(!showStatusFilter)
-                setShowTagFilter(false)
-                setShowCategoryFilter(false)
-              }}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Status
-              {allStatus.filter(s => activeFilters.includes(s.id)).length > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-                  {allStatus.filter(s => activeFilters.includes(s.id)).length}
-                </Badge>
+          {allStatus.length > 0 && (
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="filter-button h-10 cursor-pointer"
+                onClick={() => {
+                  setShowStatusFilter(!showStatusFilter)
+                  setShowTagFilter(false)
+                  setShowCategoryFilter(false)
+                }}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Status
+                {allStatus.filter(s => activeFilters.includes(s.id)).length > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+                    {allStatus.filter(s => activeFilters.includes(s.id)).length}
+                  </Badge>
+                )}
+              </Button>
+              
+              {showStatusFilter && (
+                <div className="filter-dropdown absolute top-full mt-2 bg-[var(--color-bg-modal)] border border-gray-200 rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
+                  {allStatus.map(status => (
+                    <button
+                      key={status.id}
+                      onClick={() => toggleFilter(status.id)}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
+                    >
+                      <Badge className={`${getColorClass(status.color)} border text-xs font-medium px-2 py-1`}>
+                        {status.name}
+                      </Badge>
+                      {activeFilters.includes(status.id) && (
+                        <span className="text-xs text-green-600 font-semibold">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               )}
-            </Button>
-            
-            {showStatusFilter && (
-              <div className="filter-dropdown absolute top-full mt-2 bg-[var(--color-bg-modal)] border border-gray-200 rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
-                {allStatus.map(status => (
-                  <button
-                    key={status.id}
-                    onClick={() => toggleFilter(status.id)}
-                    className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
-                  >
-                    <Badge className={`${getColorClass(status.color)} border text-xs font-medium px-2 py-1`}>
-                      {status.name}
-                    </Badge>
-                    {activeFilters.includes(status.id) && (
-                      <span className="text-xs text-green-600 font-semibold">✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="sm"
-              className="filter-button h-10 cursor-pointer"
-              onClick={() => {
-                setShowCategoryFilter(!showCategoryFilter)
-                setShowTagFilter(false)
-                setShowStatusFilter(false)
-              }}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Categorias
-              {allCategories.filter(c => activeFilters.includes(c.name)).length > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-                  {allCategories.filter(c => activeFilters.includes(c.name)).length}
-                </Badge>
+          {allCategories.length > 0 && (
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="filter-button h-10 cursor-pointer"
+                onClick={() => {
+                  setShowCategoryFilter(!showCategoryFilter)
+                  setShowTagFilter(false)
+                  setShowStatusFilter(false)
+                }}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Categorias
+                {allCategories.filter(c => activeFilters.includes(c.name)).length > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+                    {allCategories.filter(c => activeFilters.includes(c.name)).length}
+                  </Badge>
+                )}
+              </Button>
+              
+              {showCategoryFilter && (
+                <div className="filter-dropdown absolute top-full mt-2 bg-[var(--color-bg-modal)] border border-gray-200 rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
+                  {allCategories.map(category => (
+                    <button
+                      key={category.id}
+                      onClick={() => toggleFilter(category.name)}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
+                    >
+                      <Badge className={`${getColorClass(category.color)} border text-xs font-medium px-2 py-1`}>
+                        {category.name}
+                      </Badge>
+                      {activeFilters.includes(category.name) && (
+                        <span className="text-xs text-green-600 font-semibold">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               )}
-            </Button>
-            
-            {showCategoryFilter && (
-              <div className="filter-dropdown absolute top-full mt-2 bg-[var(--color-bg-modal)] border border-gray-200 rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
-                {allCategories.map(category => (
-                  <button
-                    key={category.id}
-                    onClick={() => toggleFilter(category.name)}
-                    className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
-                  >
-                    <Badge className={`${getColorClass(category.color)} border text-xs font-medium px-2 py-1`}>
-                      {category.name}
-                    </Badge>
-                    {activeFilters.includes(category.name) && (
-                      <span className="text-xs text-green-600 font-semibold">✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="sm"
-              className="filter-button h-10 cursor-pointer"
-              onClick={() => {
-                setShowTagFilter(!showTagFilter)
-                setShowCategoryFilter(false)
-                setShowStatusFilter(false)
-              }}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Tags
-              {allTags.filter(t => activeFilters.includes(t.name)).length > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-                  {allTags.filter(t => activeFilters.includes(t.name)).length}
-                </Badge>
+          {allTags.length > 0 && (
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="filter-button h-10 cursor-pointer"
+                onClick={() => {
+                  setShowTagFilter(!showTagFilter)
+                  setShowCategoryFilter(false)
+                  setShowStatusFilter(false)
+                }}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Tags
+                {allTags.filter(t => activeFilters.includes(t.name)).length > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+                    {allTags.filter(t => activeFilters.includes(t.name)).length}
+                  </Badge>
+                )}
+              </Button>
+              
+              {showTagFilter && (
+                <div className="filter-dropdown absolute top-full mt-2 bg-[var(--color-bg-modal)] border border-gray-200 rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
+                  {allTags.map(tag => (
+                    <button
+                      key={tag.id}
+                      onClick={() => toggleFilter(tag.name)}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
+                    >
+                      <Badge className={`${getColorClass(tag.color)} border text-xs font-medium px-2 py-1`}>
+                        {tag.name}
+                      </Badge>
+                      {activeFilters.includes(tag.name) && (
+                        <span className="text-xs text-green-600 font-semibold">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               )}
-            </Button>
-            
-            {showTagFilter && (
-              <div className="filter-dropdown absolute top-full mt-2 bg-[var(--color-bg-modal)] border border-gray-200 rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
-                {allTags.map(tag => (
-                  <button
-                    key={tag.id}
-                    onClick={() => toggleFilter(tag.name)}
-                    className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
-                  >
-                    <Badge className={`${getColorClass(tag.color)} border text-xs font-medium px-2 py-1`}>
-                      {tag.name}
-                    </Badge>
-                    {activeFilters.includes(tag.name) && (
-                      <span className="text-xs text-green-600 font-semibold">✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {activeFilters.length > 0 && (
             <Button
@@ -1229,16 +1273,14 @@ export default function OrdersPage() {
                         items={ordersForDate.map(o => o.id)}
                         strategy={verticalListSortingStrategy}
                       >
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                          <div className="divide-y divide-gray-200">
-                            {ordersForDate.map(order => (
-                              <SortableOrderCard
-                                key={order.id}
-                                order={order}
-                                onClick={() => handleOrderClick(order)}
-                              />
-                            ))}
-                          </div>
+                        <div className="space-y-0">
+                          {ordersForDate.map(order => (
+                            <SortableOrderCard
+                              key={order.id}
+                              order={order}
+                              onClick={() => handleOrderClick(order)}
+                            />
+                          ))}
                         </div>
                       </SortableContext>
                     </DndContext>
@@ -1587,7 +1629,7 @@ export default function OrdersPage() {
                 value={formData.status}
                 onChange={handleInputChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-500 bg-white"
               >
                 <option value="pending">Pendente</option>
                 <option value="in-progress">Em Andamento</option>
@@ -1652,19 +1694,13 @@ export default function OrdersPage() {
               {isEditing && (
                 <button
                   type="button"
-                  onClick={handleDelete}
-                  className="btn-danger flex-1"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  className="btn-outline-danger flex-1 flex items-center justify-center gap-2"
                 >
+                  <Trash2 className="h-4 w-4" />
                   Excluir
                 </button>
               )}
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="btn-outline-grey flex-1"
-              >
-                Cancelar
-              </button>
               <button
                 type="submit"
                 className="btn-success flex-1"
@@ -1786,7 +1822,7 @@ export default function OrdersPage() {
                   category: e.target.value as 'cake' | 'cupcake' | 'cookie' | 'pie' | 'other'
                 }))}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-500 bg-white"
               >
                 <option value="cake">Bolo</option>
                 <option value="cupcake">Cupcake</option>
@@ -1845,6 +1881,36 @@ export default function OrdersPage() {
           </form>
         </Modal>
       )}
+
+      {/* Alert Dialog para Exclusão */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <div className="flex flex-col gap-2 max-sm:items-center sm:flex-row sm:gap-4">
+            <div
+              className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border"
+              aria-hidden="true"
+            >
+              <CircleAlert className="opacity-80" size={16} strokeWidth={2} />
+            </div>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Essa ação não pode ser desfeita. O pedido será permanentemente excluído do sistema.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="btn-outline-grey">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              className="btn-danger flex items-center gap-2"
+              onClick={handleDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

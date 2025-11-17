@@ -2,8 +2,19 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { User, Phone, Mail, ShoppingBag, X, Search, Info, ArrowDownAZ, ArrowDownZA, Camera, SwitchCamera, CircleX } from 'lucide-react'
+import { User, Phone, Mail, ShoppingBag, X, Search, Info, ArrowDownAZ, ArrowDownZA, Camera, SwitchCamera, CircleX, Trash2, CircleAlert } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { showToast } from '@/app/(dashboard)/layout'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 type Customer = {
   id: string
@@ -82,6 +93,8 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [formData, setFormData] = useState({
     name: '',
@@ -273,9 +286,20 @@ export default function CustomersPage() {
 
       setCustomers(prev => [customerWithCount, ...prev])
       closeModal()
+      showToast({
+        title: 'Cliente criado!',
+        message: `${newCustomer.name} foi adicionado com sucesso.`,
+        variant: 'success',
+        duration: 3000,
+      })
     } catch (error) {
       console.error('Erro ao criar cliente:', error)
-      alert('Erro ao criar cliente. Tente novamente.')
+      showToast({
+        title: 'Erro ao criar cliente',
+        message: 'Não foi possível criar o cliente. Tente novamente.',
+        variant: 'error',
+        duration: 4000,
+      })
     } finally {
       setLoading(false)
     }
@@ -338,19 +362,26 @@ export default function CustomersPage() {
       ))
       
       closeModal()
+      showToast({
+        title: 'Cliente atualizado!',
+        message: 'O cliente foi atualizado com sucesso.',
+        variant: 'success',
+        duration: 3000,
+      })
     } catch (error) {
       console.error('Erro ao atualizar cliente:', error)
-      alert('Erro ao atualizar cliente. Tente novamente.')
+      showToast({
+        title: 'Erro ao atualizar cliente',
+        message: 'Não foi possível atualizar o cliente. Tente novamente.',
+        variant: 'error',
+        duration: 4000,
+      })
     } finally {
       setLoading(false)
     }
   }
 
   const handleDeleteCustomer = async (customerId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este cliente?')) {
-      return
-    }
-
     try {
       const response = await fetch(`/api/customers?id=${customerId}`, {
         method: 'DELETE',
@@ -360,9 +391,22 @@ export default function CustomersPage() {
 
       setCustomers(prev => prev.filter(c => c.id !== customerId))
       setSelectedCustomer(null)
+      setDeleteDialogOpen(false)
+      setCustomerToDelete(null)
+      showToast({
+        title: 'Cliente excluído!',
+        message: 'O cliente foi excluído com sucesso.',
+        variant: 'success',
+        duration: 3000,
+      })
     } catch (error) {
       console.error('Erro ao excluir cliente:', error)
-      alert('Erro ao excluir cliente. Tente novamente.')
+      showToast({
+        title: 'Erro ao excluir cliente',
+        message: 'Não foi possível excluir o cliente. Tente novamente.',
+        variant: 'error',
+        duration: 4000,
+      })
     }
   }
 
@@ -444,64 +488,62 @@ export default function CustomersPage() {
       </div>
 
       {/* Lista de Clientes */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="space-y-4">
         {filteredCustomers.length === 0 ? (
-          <p className="text-gray-600 text-center py-8">
+          <div className="text-center py-8 text-gray-500">
             {searchQuery ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado. Clique em "+ Novo Cliente" para começar.'}
-          </p>
+          </div>
         ) : (
-          <div className="divide-y divide-gray-200">
-            {filteredCustomers.map((customer) => (
-              <div
-                key={customer.id}
-                onClick={() => setSelectedCustomer(customer)}
-                className="group cursor-pointer bg-white border-b border-gray-200 last:border-b-0 p-6 transition-colors hover:bg-gray-50"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-melon)] to-[var(--color-old-rose)] flex items-center justify-center overflow-hidden relative">
-                      {customer.avatar_url ? (
-                        <Image
-                          src={customer.avatar_url}
-                          alt={customer.name}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <User className="w-6 h-6 text-white" />
+          filteredCustomers.map((customer) => (
+            <div
+              key={customer.id}
+              onClick={() => handleEditCustomer(customer)}
+              className="bg-white border border-gray-200 rounded-lg p-5 mb-4 cursor-pointer hover:shadow-md transition-shadow duration-200"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-melon)] to-[var(--color-old-rose)] flex items-center justify-center overflow-hidden relative">
+                    {customer.avatar_url ? (
+                      <Image
+                        src={customer.avatar_url}
+                        alt={customer.name}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <User className="w-6 h-6 text-white" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{customer.name}</h3>
+                    <div className="flex items-center gap-4 mt-1">
+                      {customer.phone && (
+                        <span className="text-sm text-gray-600 flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          {customer.phone}
+                        </span>
+                      )}
+                      {customer.email && (
+                        <span className="text-sm text-gray-600 flex items-center gap-1">
+                          <Mail className="w-3 h-3" />
+                          {customer.email}
+                        </span>
                       )}
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{customer.name}</h3>
-                      <div className="flex items-center gap-4 mt-1">
-                        {customer.phone && (
-                          <span className="text-sm text-gray-600 flex items-center gap-1">
-                            <Phone className="w-3 h-3" />
-                            {customer.phone}
-                          </span>
-                        )}
-                        {customer.email && (
-                          <span className="text-sm text-gray-600 flex items-center gap-1">
-                            <Mail className="w-3 h-3" />
-                            {customer.email}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center gap-2 text-[var(--color-old-rose)] font-semibold">
-                      <ShoppingBag className="w-4 h-4" />
-                      {customer.orders_count} pedidos
-                    </div>
-                    <span className="text-xs text-gray-500 mt-1 block">
-                      Cliente desde {formatDate(customer.created_at)}
-                    </span>
                   </div>
                 </div>
+                <div className="text-right">
+                  <div className="flex items-center gap-2 text-[var(--color-old-rose)] font-semibold">
+                    <ShoppingBag className="w-4 h-4" />
+                    {customer.orders_count} pedidos
+                  </div>
+                  <span className="text-xs text-gray-500 mt-1 block">
+                    Cliente desde {formatDate(customer.created_at)}
+                  </span>
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))
         )}
       </div>
 
@@ -531,7 +573,6 @@ export default function CustomersPage() {
             <form onSubmit={editingCustomer ? handleUpdateCustomer : handleSubmit} className="p-6 space-y-4">
               {/* Foto do Cliente */}
               <div className="mb-6 pb-6 border-b border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Foto do Cliente</h3>
                 <div className="flex items-center gap-4">
                   <div className="relative">
                     <label className="cursor-pointer group">
@@ -602,7 +643,7 @@ export default function CustomersPage() {
                   onBlur={() => handleBlur('name')}
                   className={`w-full px-3 py-2 border ${
                     touched.name && errors.name ? 'border-[#D67973]' : 'border-gray-300'
-                  } rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 transition-colors`}
+                  } rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 transition-colors bg-white`}
                   placeholder="Digite o nome"
                 />
                 {touched.name && errors.name && (
@@ -623,7 +664,7 @@ export default function CustomersPage() {
                   maxLength={18}
                   className={`w-full px-3 py-2 border ${
                     touched.cpf_cnpj && errors.cpf_cnpj ? 'border-[#D67973]' : 'border-gray-300'
-                  } rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 transition-colors`}
+                  } rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 transition-colors bg-white`}
                   placeholder="000.000.000-00 ou 00.000.000/0000-00"
                 />
                 {touched.cpf_cnpj && errors.cpf_cnpj && (
@@ -644,7 +685,7 @@ export default function CustomersPage() {
                   maxLength={15}
                   className={`w-full px-3 py-2 border ${
                     touched.phone && errors.phone ? 'border-[#D67973]' : 'border-gray-300'
-                  } rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 transition-colors`}
+                  } rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 transition-colors bg-white`}
                   placeholder="(00) 00000-0000"
                 />
                 {touched.phone && errors.phone && (
@@ -664,7 +705,7 @@ export default function CustomersPage() {
                   onBlur={() => handleBlur('email')}
                   className={`w-full px-3 py-2 border ${
                     touched.email && errors.email ? 'border-[#D67973]' : 'border-gray-300'
-                  } rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 transition-colors`}
+                  } rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 transition-colors bg-white`}
                   placeholder="cliente@email.com"
                 />
                 {touched.email && errors.email && (
@@ -682,7 +723,7 @@ export default function CustomersPage() {
                   onChange={handleInputChange}
                   onBlur={() => handleBlur('notes')}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 transition-colors resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 transition-colors resize-none bg-white"
                   placeholder="Adicione observações sobre o cliente..."
                 />
               </div>
@@ -802,9 +843,13 @@ export default function CustomersPage() {
                   Editar
                 </button>
                 <button 
-                  onClick={() => handleDeleteCustomer(selectedCustomer.id)}
-                  className="btn-danger flex-1"
+                  onClick={() => {
+                    setCustomerToDelete(selectedCustomer.id)
+                    setDeleteDialogOpen(true)
+                  }}
+                  className="btn-outline-danger flex-1 flex items-center justify-center gap-2"
                 >
+                  <Trash2 className="h-4 w-4" />
                   Excluir
                 </button>
               </div>
@@ -812,6 +857,36 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+
+      {/* Alert Dialog para Exclusão */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <div className="flex flex-col gap-2 max-sm:items-center sm:flex-row sm:gap-4">
+            <div
+              className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border"
+              aria-hidden="true"
+            >
+              <CircleAlert className="opacity-80" size={16} strokeWidth={2} />
+            </div>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Essa ação não pode ser desfeita. O cliente será permanentemente excluído do sistema.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="btn-outline-grey">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              className="btn-danger flex items-center gap-2"
+              onClick={() => customerToDelete && handleDeleteCustomer(customerToDelete)}
+            >
+              <Trash2 className="h-4 w-4" />
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

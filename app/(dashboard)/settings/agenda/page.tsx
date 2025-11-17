@@ -24,27 +24,27 @@ interface TagItem {
   color: string
 }
 
-export default function OrdersSettingsPage() {
+export default function AgendaSettingsPage() {
   // Carregar preferências do localStorage durante a inicialização
-  const [defaultView, setDefaultView] = useState<'list' | 'day' | 'week' | 'month'>(() => {
+  const [defaultView, setDefaultView] = useState<'list' | 'kanban' | 'day' | 'week' | 'month'>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ordersDefaultView')
-      return (saved as 'list' | 'day' | 'week' | 'month') || 'list'
+      const saved = localStorage.getItem('agendaDefaultView')
+      return (saved as 'list' | 'kanban' | 'day' | 'week' | 'month') || 'week'
     }
-    return 'list'
+    return 'week'
   })
   
-  const [savedDefaultView, setSavedDefaultView] = useState<'list' | 'day' | 'week' | 'month'>(() => {
+  const [savedDefaultView, setSavedDefaultView] = useState<'list' | 'kanban' | 'day' | 'week' | 'month'>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ordersDefaultView')
-      return (saved as 'list' | 'day' | 'week' | 'month') || 'list'
+      const saved = localStorage.getItem('agendaDefaultView')
+      return (saved as 'list' | 'kanban' | 'day' | 'week' | 'month') || 'week'
     }
-    return 'list'
+    return 'week'
   })
   
   const [dateFormat, setDateFormat] = useState<'short' | 'numeric' | 'long'>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ordersDateFormat')
+      const saved = localStorage.getItem('agendaDateFormat')
       return (saved as 'short' | 'numeric' | 'long') || 'numeric'
     }
     return 'numeric'
@@ -52,12 +52,12 @@ export default function OrdersSettingsPage() {
   
   const [savedDateFormat, setSavedDateFormat] = useState<'short' | 'numeric' | 'long'>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ordersDateFormat')
+      const saved = localStorage.getItem('agendaDateFormat')
       return (saved as 'short' | 'numeric' | 'long') || 'numeric'
     }
     return 'numeric'
   })
-
+  
   const [statuses, setStatuses] = useState<Status[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [tags, setTags] = useState<TagItem[]>([])
@@ -65,7 +65,7 @@ export default function OrdersSettingsPage() {
   const [newStatusName, setNewStatusName] = useState('')
   const [newStatusColor, setNewStatusColor] = useState('blue')
   const [newCategoryName, setNewCategoryName] = useState('')
-  const [newCategoryColor, setNewCategoryColor] = useState('pink')
+  const [newCategoryColor, setNewCategoryColor] = useState('blue')
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState('blue')
 
@@ -75,53 +75,43 @@ export default function OrdersSettingsPage() {
 
   // Carregar dados do banco de dados
   useEffect(() => {
-    const fetchStatuses = async () => {
+    const loadData = async () => {
       try {
-        const response = await fetch('/api/orders/statuses')
-        if (response.ok) {
-          const data = await response.json()
-          setStatuses(data)
+        const [statusesRes, categoriesRes, tagsRes] = await Promise.all([
+          fetch('/api/agenda/statuses'),
+          fetch('/api/agenda/categories'),
+          fetch('/api/agenda/tags')
+        ])
+
+        if (statusesRes.ok) {
+          const statusesData = await statusesRes.json()
+          setStatuses(statusesData)
+        }
+
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json()
+          setCategories(categoriesData)
+        }
+
+        if (tagsRes.ok) {
+          const tagsData = await tagsRes.json()
+          setTags(tagsData)
         }
       } catch (error) {
-        console.error('Erro ao carregar status:', error)
+        console.error('Erro ao carregar configurações:', error)
       }
     }
 
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch('/api/orders/categories')
-        if (response.ok) {
-          const data = await response.json()
-          setCategories(data)
-        }
-      } catch (error) {
-        console.error('Erro ao carregar categorias:', error)
-      }
-    }
-
-    const fetchTags = async () => {
-      try {
-        const response = await fetch('/api/orders/tags')
-        if (response.ok) {
-          const data = await response.json()
-          setTags(data)
-        }
-      } catch (error) {
-        console.error('Erro ao carregar tags:', error)
-      }
-    }
-
-    fetchStatuses()
-    fetchCategories()
-    fetchTags()
+    loadData()
   }, [])
 
   const saveDefaultView = () => {
-    localStorage.setItem('ordersDefaultView', defaultView)
+    localStorage.setItem('agendaDefaultView', defaultView)
     setSavedDefaultView(defaultView)
     
     const viewNames = {
       list: 'Lista',
+      kanban: 'Kanban',
       day: 'Dia',
       week: 'Semana',
       month: 'Mês'
@@ -158,7 +148,7 @@ export default function OrdersSettingsPage() {
     try {
       if (editingStatusId) {
         // Atualizar status existente
-        const response = await fetch(`/api/orders/statuses?id=${editingStatusId}`, {
+        const response = await fetch(`/api/agenda/statuses?id=${editingStatusId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: newStatusName, color: newStatusColor }),
@@ -167,19 +157,20 @@ export default function OrdersSettingsPage() {
         if (response.ok) {
           const updatedStatus = await response.json()
           setStatuses(statuses.map(s => s.id === editingStatusId ? updatedStatus : s))
-          setNewStatusName('')
-          setNewStatusColor('blue')
-          setEditingStatusId(null)
           showToast({
             title: 'Status atualizado!',
-            message: `"${updatedStatus.name}" foi atualizado com sucesso.`,
+            message: `${updatedStatus.name} foi atualizado com sucesso.`,
             variant: 'success',
             duration: 3000,
           })
+          setEditingStatusId(null)
+        } else {
+          const error = await response.json()
+          throw new Error(error.error || 'Erro ao atualizar status')
         }
       } else {
         // Adicionar novo status
-        const response = await fetch('/api/orders/statuses', {
+        const response = await fetch('/api/agenda/statuses', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: newStatusName, color: newStatusColor }),
@@ -188,30 +179,27 @@ export default function OrdersSettingsPage() {
         if (response.ok) {
           const newStatus = await response.json()
           setStatuses([...statuses, newStatus])
-          setNewStatusName('')
-          setNewStatusColor('blue')
           showToast({
-            title: 'Status adicionado!',
-            message: `"${newStatus.name}" foi adicionado com sucesso.`,
+            title: 'Status criado!',
+            message: `${newStatus.name} foi adicionado com sucesso.`,
             variant: 'success',
             duration: 3000,
           })
-        } else if (response.status === 409) {
-          showToast({
-            title: 'Status já existe',
-            message: 'Já existe um status com esse nome.',
-            variant: 'error',
-            duration: 3000,
-          })
+        } else {
+          const error = await response.json()
+          throw new Error(error.error || 'Erro ao criar status')
         }
       }
+      
+      setNewStatusName('')
+      setNewStatusColor('blue')
     } catch (error) {
       console.error('Erro ao salvar status:', error)
       showToast({
-        title: 'Erro',
-        message: 'Não foi possível salvar o status.',
+        title: 'Erro ao salvar status',
+        message: error instanceof Error ? error.message : 'Tente novamente.',
         variant: 'error',
-        duration: 3000,
+        duration: 4000,
       })
     }
   }
@@ -222,28 +210,30 @@ export default function OrdersSettingsPage() {
     setNewStatusColor(status.color)
   }
 
-  const removeStatus = async (id: string, name: string) => {
+  const removeStatus = async (id: string) => {
     try {
-      const response = await fetch(`/api/orders/statuses?id=${id}`, {
+      const response = await fetch(`/api/agenda/statuses?id=${id}`, {
         method: 'DELETE',
       })
 
       if (response.ok) {
         setStatuses(statuses.filter(s => s.id !== id))
         showToast({
-          title: 'Status removido!',
-          message: `"${name}" foi removido com sucesso.`,
+          title: 'Status excluído!',
+          message: 'O status foi excluído com sucesso.',
           variant: 'success',
           duration: 3000,
         })
+      } else {
+        throw new Error('Erro ao deletar status')
       }
     } catch (error) {
-      console.error('Erro ao remover status:', error)
+      console.error('Erro ao deletar status:', error)
       showToast({
-        title: 'Erro',
-        message: 'Não foi possível remover o status.',
+        title: 'Erro ao excluir status',
+        message: 'Não foi possível excluir o status. Tente novamente.',
         variant: 'error',
-        duration: 3000,
+        duration: 4000,
       })
     }
   }
@@ -254,7 +244,7 @@ export default function OrdersSettingsPage() {
     try {
       if (editingCategoryId) {
         // Atualizar categoria existente
-        const response = await fetch(`/api/orders/categories?id=${editingCategoryId}`, {
+        const response = await fetch(`/api/agenda/categories?id=${editingCategoryId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: newCategoryName, color: newCategoryColor }),
@@ -263,19 +253,20 @@ export default function OrdersSettingsPage() {
         if (response.ok) {
           const updatedCategory = await response.json()
           setCategories(categories.map(c => c.id === editingCategoryId ? updatedCategory : c))
-          setNewCategoryName('')
-          setNewCategoryColor('pink')
-          setEditingCategoryId(null)
           showToast({
             title: 'Categoria atualizada!',
-            message: `"${updatedCategory.name}" foi atualizada com sucesso.`,
+            message: `${updatedCategory.name} foi atualizada com sucesso.`,
             variant: 'success',
             duration: 3000,
           })
+          setEditingCategoryId(null)
+        } else {
+          const error = await response.json()
+          throw new Error(error.error || 'Erro ao atualizar categoria')
         }
       } else {
         // Adicionar nova categoria
-        const response = await fetch('/api/orders/categories', {
+        const response = await fetch('/api/agenda/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: newCategoryName, color: newCategoryColor }),
@@ -284,30 +275,27 @@ export default function OrdersSettingsPage() {
         if (response.ok) {
           const newCategory = await response.json()
           setCategories([...categories, newCategory])
-          setNewCategoryName('')
-          setNewCategoryColor('pink')
           showToast({
-            title: 'Categoria adicionada!',
-            message: `"${newCategory.name}" foi adicionada com sucesso.`,
+            title: 'Categoria criada!',
+            message: `${newCategory.name} foi adicionada com sucesso.`,
             variant: 'success',
             duration: 3000,
           })
-        } else if (response.status === 409) {
-          showToast({
-            title: 'Categoria já existe',
-            message: 'Já existe uma categoria com esse nome.',
-            variant: 'error',
-            duration: 3000,
-          })
+        } else {
+          const error = await response.json()
+          throw new Error(error.error || 'Erro ao criar categoria')
         }
       }
+      
+      setNewCategoryName('')
+      setNewCategoryColor('blue')
     } catch (error) {
       console.error('Erro ao salvar categoria:', error)
       showToast({
-        title: 'Erro',
-        message: 'Não foi possível salvar a categoria.',
+        title: 'Erro ao salvar categoria',
+        message: error instanceof Error ? error.message : 'Tente novamente.',
         variant: 'error',
-        duration: 3000,
+        duration: 4000,
       })
     }
   }
@@ -318,28 +306,30 @@ export default function OrdersSettingsPage() {
     setNewCategoryColor(category.color)
   }
 
-  const removeCategory = async (id: string, name: string) => {
+  const removeCategory = async (id: string) => {
     try {
-      const response = await fetch(`/api/orders/categories?id=${id}`, {
+      const response = await fetch(`/api/agenda/categories?id=${id}`, {
         method: 'DELETE',
       })
 
       if (response.ok) {
         setCategories(categories.filter(c => c.id !== id))
         showToast({
-          title: 'Categoria removida!',
-          message: `"${name}" foi removida com sucesso.`,
+          title: 'Categoria excluída!',
+          message: 'A categoria foi excluída com sucesso.',
           variant: 'success',
           duration: 3000,
         })
+      } else {
+        throw new Error('Erro ao deletar categoria')
       }
     } catch (error) {
-      console.error('Erro ao remover categoria:', error)
+      console.error('Erro ao deletar categoria:', error)
       showToast({
-        title: 'Erro',
-        message: 'Não foi possível remover a categoria.',
+        title: 'Erro ao excluir categoria',
+        message: 'Não foi possível excluir a categoria. Tente novamente.',
         variant: 'error',
-        duration: 3000,
+        duration: 4000,
       })
     }
   }
@@ -350,7 +340,7 @@ export default function OrdersSettingsPage() {
     try {
       if (editingTagId) {
         // Atualizar tag existente
-        const response = await fetch(`/api/orders/tags?id=${editingTagId}`, {
+        const response = await fetch(`/api/agenda/tags?id=${editingTagId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: newTagName, color: newTagColor }),
@@ -359,19 +349,20 @@ export default function OrdersSettingsPage() {
         if (response.ok) {
           const updatedTag = await response.json()
           setTags(tags.map(t => t.id === editingTagId ? updatedTag : t))
-          setNewTagName('')
-          setNewTagColor('blue')
-          setEditingTagId(null)
           showToast({
             title: 'Tag atualizada!',
-            message: `"${updatedTag.name}" foi atualizada com sucesso.`,
+            message: `${updatedTag.name} foi atualizada com sucesso.`,
             variant: 'success',
             duration: 3000,
           })
+          setEditingTagId(null)
+        } else {
+          const error = await response.json()
+          throw new Error(error.error || 'Erro ao atualizar tag')
         }
       } else {
         // Adicionar nova tag
-        const response = await fetch('/api/orders/tags', {
+        const response = await fetch('/api/agenda/tags', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: newTagName, color: newTagColor }),
@@ -380,30 +371,27 @@ export default function OrdersSettingsPage() {
         if (response.ok) {
           const newTag = await response.json()
           setTags([...tags, newTag])
-          setNewTagName('')
-          setNewTagColor('blue')
           showToast({
-            title: 'Tag adicionada!',
-            message: `"${newTag.name}" foi adicionada com sucesso.`,
+            title: 'Tag criada!',
+            message: `${newTag.name} foi adicionada com sucesso.`,
             variant: 'success',
             duration: 3000,
           })
-        } else if (response.status === 409) {
-          showToast({
-            title: 'Tag já existe',
-            message: 'Já existe uma tag com esse nome.',
-            variant: 'error',
-            duration: 3000,
-          })
+        } else {
+          const error = await response.json()
+          throw new Error(error.error || 'Erro ao criar tag')
         }
       }
+      
+      setNewTagName('')
+      setNewTagColor('blue')
     } catch (error) {
       console.error('Erro ao salvar tag:', error)
       showToast({
-        title: 'Erro',
-        message: 'Não foi possível salvar a tag.',
+        title: 'Erro ao salvar tag',
+        message: error instanceof Error ? error.message : 'Tente novamente.',
         variant: 'error',
-        duration: 3000,
+        duration: 4000,
       })
     }
   }
@@ -414,30 +402,8 @@ export default function OrdersSettingsPage() {
     setNewTagColor(tag.color)
   }
 
-  const removeTag = async (id: string, name: string) => {
-    try {
-      const response = await fetch(`/api/orders/tags?id=${id}`, {
-        method: 'DELETE',
-      })
-
-      if (response.ok) {
-        setTags(tags.filter(t => t.id !== id))
-        showToast({
-          title: 'Tag removida!',
-          message: `"${name}" foi removida com sucesso.`,
-          variant: 'success',
-          duration: 3000,
-        })
-      }
-    } catch (error) {
-      console.error('Erro ao remover tag:', error)
-      showToast({
-        title: 'Erro',
-        message: 'Não foi possível remover a tag.',
-        variant: 'error',
-        duration: 3000,
-      })
-    }
+  const removeTag = (id: string) => {
+    setTags(tags.filter(t => t.id !== id))
   }
 
   // Gerar exemplos de formato de data com o dia atual
@@ -467,7 +433,7 @@ export default function OrdersSettingsPage() {
           <h2 className="text-lg font-semibold text-gray-900">Visualização Padrão</h2>
         </div>
         <p className="text-sm text-gray-600 mb-6">
-          Defina qual será a visualização padrão ao abrir a página de pedidos.
+          Defina qual será a visualização padrão ao abrir a página de agenda.
         </p>
 
         <div className="space-y-4">
@@ -478,8 +444,8 @@ export default function OrdersSettingsPage() {
                 name="defaultView"
                 value="list"
                 checked={defaultView === 'list'}
-                onChange={(e) => setDefaultView(e.target.value as 'list' | 'day' | 'week' | 'month')}
-                className="w-4 h-4 text-pink-600 focus:ring-pink-500"
+                onChange={(e) => setDefaultView(e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month')}
+                className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">Lista</span>
             </label>
@@ -488,10 +454,22 @@ export default function OrdersSettingsPage() {
               <input
                 type="radio"
                 name="defaultView"
+                value="kanban"
+                checked={defaultView === 'kanban'}
+                onChange={(e) => setDefaultView(e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month')}
+                className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
+              />
+              <span className="text-sm font-medium text-gray-900">Kanban</span>
+            </label>
+            
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="defaultView"
                 value="day"
                 checked={defaultView === 'day'}
-                onChange={(e) => setDefaultView(e.target.value as 'list' | 'day' | 'week' | 'month')}
-                className="w-4 h-4 text-pink-600 focus:ring-pink-500"
+                onChange={(e) => setDefaultView(e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month')}
+                className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">Dia</span>
             </label>
@@ -502,8 +480,8 @@ export default function OrdersSettingsPage() {
                 name="defaultView"
                 value="week"
                 checked={defaultView === 'week'}
-                onChange={(e) => setDefaultView(e.target.value as 'list' | 'day' | 'week' | 'month')}
-                className="w-4 h-4 text-pink-600 focus:ring-pink-500"
+                onChange={(e) => setDefaultView(e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month')}
+                className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">Semana</span>
             </label>
@@ -514,8 +492,8 @@ export default function OrdersSettingsPage() {
                 name="defaultView"
                 value="month"
                 checked={defaultView === 'month'}
-                onChange={(e) => setDefaultView(e.target.value as 'list' | 'day' | 'week' | 'month')}
-                className="w-4 h-4 text-pink-600 focus:ring-pink-500"
+                onChange={(e) => setDefaultView(e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month')}
+                className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">Mês</span>
             </label>
@@ -551,7 +529,7 @@ export default function OrdersSettingsPage() {
                 value="short"
                 checked={dateFormat === 'short'}
                 onChange={(e) => setDateFormat(e.target.value as 'short' | 'numeric' | 'long')}
-                className="w-4 h-4 text-pink-600 focus:ring-pink-500"
+                className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">{dateExamples.short}</span>
             </label>
@@ -563,7 +541,7 @@ export default function OrdersSettingsPage() {
                 value="numeric"
                 checked={dateFormat === 'numeric'}
                 onChange={(e) => setDateFormat(e.target.value as 'short' | 'numeric' | 'long')}
-                className="w-4 h-4 text-pink-600 focus:ring-pink-500"
+                className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">{dateExamples.numeric}</span>
             </label>
@@ -575,7 +553,7 @@ export default function OrdersSettingsPage() {
                 value="long"
                 checked={dateFormat === 'long'}
                 onChange={(e) => setDateFormat(e.target.value as 'short' | 'numeric' | 'long')}
-                className="w-4 h-4 text-pink-600 focus:ring-pink-500"
+                className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">{dateExamples.long}</span>
             </label>
@@ -583,7 +561,7 @@ export default function OrdersSettingsPage() {
             {dateFormat !== savedDateFormat && (
               <button 
                 onClick={() => {
-                  localStorage.setItem('ordersDateFormat', dateFormat)
+                  localStorage.setItem('agendaDateFormat', dateFormat)
                   setSavedDateFormat(dateFormat)
                   showToast({
                     title: 'Preferência salva!',
@@ -608,7 +586,7 @@ export default function OrdersSettingsPage() {
           <h2 className="text-lg font-semibold text-gray-900">Status</h2>
         </div>
         <p className="text-sm text-gray-600 mb-6">
-          Defina os status para acompanhar o andamento dos seus pedidos.
+          Defina os status para acompanhar o andamento das suas tarefas na agenda.
         </p>
 
         {/* Lista de Status */}
@@ -619,7 +597,7 @@ export default function OrdersSettingsPage() {
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${getColorClass(status.color)} cursor-pointer hover:opacity-80 transition-opacity`}
             >
               <span 
-                className="text-xs font-medium cursor-pointer"
+                className="text-xs font-medium"
                 onClick={() => editStatus(status)}
               >
                 {status.name}
@@ -627,7 +605,7 @@ export default function OrdersSettingsPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  removeStatus(status.id, status.name)
+                  removeStatus(status.id)
                 }}
                 className="hover:opacity-70"
               >
@@ -659,7 +637,7 @@ export default function OrdersSettingsPage() {
                 id="statusColor"
                 value={newStatusColor}
                 onChange={(e) => setNewStatusColor(e.target.value)}
-                className="w-full h-10 px-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="w-full h-10 px-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#BE9089]"
               >
                 {colors.map(color => (
                   <option key={color.name} value={color.name}>
@@ -684,7 +662,7 @@ export default function OrdersSettingsPage() {
               <button 
                 onClick={addStatus} 
                 className="btn-success relative top-[-2px]"
-                disabled={!newStatusName.trim()}
+                disabled={!newStatusName.trim() || statuses.some(s => s.name.toLowerCase() === newStatusName.trim().toLowerCase() && s.id !== editingStatusId)}
               >
                 {editingStatusId ? <Check className="w-4 h-4 mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
                 {editingStatusId ? 'Salvar' : 'Adicionar'}
@@ -701,7 +679,7 @@ export default function OrdersSettingsPage() {
           <h2 className="text-lg font-semibold text-gray-900">Categorias</h2>
         </div>
         <p className="text-sm text-gray-600 mb-6">
-          Organize seus pedidos por categorias para facilitar a visualização e filtragem.
+          Organize suas tarefas por categorias para facilitar a visualização e filtragem.
         </p>
 
         {/* Lista de Categorias */}
@@ -712,7 +690,7 @@ export default function OrdersSettingsPage() {
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${getColorClass(category.color)} cursor-pointer hover:opacity-80 transition-opacity`}
             >
               <span 
-                className="text-xs font-medium cursor-pointer"
+                className="text-xs font-medium"
                 onClick={() => editCategory(category)}
               >
                 {category.name}
@@ -720,7 +698,7 @@ export default function OrdersSettingsPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  removeCategory(category.id, category.name)
+                  removeCategory(category.id)
                 }}
                 className="hover:opacity-70"
               >
@@ -740,7 +718,7 @@ export default function OrdersSettingsPage() {
               <Label htmlFor="categoryName">Nome</Label>
               <Input
                 id="categoryName"
-                placeholder="Ex: Bolos, Doces, Salgados..."
+                placeholder="Ex: Reunião, Entrega, Produção..."
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addCategory()}
@@ -752,7 +730,7 @@ export default function OrdersSettingsPage() {
                 id="categoryColor"
                 value={newCategoryColor}
                 onChange={(e) => setNewCategoryColor(e.target.value)}
-                className="w-full h-10 px-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="w-full h-10 px-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#BE9089]"
               >
                 {colors.map(color => (
                   <option key={color.name} value={color.name}>
@@ -767,7 +745,7 @@ export default function OrdersSettingsPage() {
                   onClick={() => {
                     setEditingCategoryId(null)
                     setNewCategoryName('')
-                    setNewCategoryColor('pink')
+                    setNewCategoryColor('blue')
                   }} 
                   className="btn-outline-grey relative top-[-2px]"
                 >
@@ -777,7 +755,7 @@ export default function OrdersSettingsPage() {
               <button 
                 onClick={addCategory} 
                 className="btn-success relative top-[-2px]"
-                disabled={!newCategoryName.trim()}
+                disabled={!newCategoryName.trim() || categories.some(c => c.name.toLowerCase() === newCategoryName.trim().toLowerCase() && c.id !== editingCategoryId)}
               >
                 {editingCategoryId ? <Check className="w-4 h-4 mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
                 {editingCategoryId ? 'Salvar' : 'Adicionar'}
@@ -794,7 +772,7 @@ export default function OrdersSettingsPage() {
           <h2 className="text-lg font-semibold text-gray-900">Tags</h2>
         </div>
         <p className="text-sm text-gray-600 mb-6">
-          Crie tags para adicionar informações extras aos pedidos, como prioridade ou tipo de evento.
+          Crie tags para adicionar informações extras às tarefas, como prioridade ou tipo de atividade.
         </p>
 
         {/* Lista de Tags */}
@@ -805,7 +783,7 @@ export default function OrdersSettingsPage() {
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${getColorClass(tag.color)} cursor-pointer hover:opacity-80 transition-opacity`}
             >
               <span 
-                className="text-xs font-medium cursor-pointer"
+                className="text-xs font-medium"
                 onClick={() => editTag(tag)}
               >
                 {tag.name}
@@ -813,7 +791,7 @@ export default function OrdersSettingsPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  removeTag(tag.id, tag.name)
+                  removeTag(tag.id)
                 }}
                 className="hover:opacity-70"
               >
@@ -833,7 +811,7 @@ export default function OrdersSettingsPage() {
               <Label htmlFor="tagName">Nome</Label>
               <Input
                 id="tagName"
-                placeholder="Ex: Urgente, Festa, Aniversário..."
+                placeholder="Ex: Urgente, Importante, Recorrente..."
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addTag()}
@@ -845,7 +823,7 @@ export default function OrdersSettingsPage() {
                 id="tagColor"
                 value={newTagColor}
                 onChange={(e) => setNewTagColor(e.target.value)}
-                className="w-full h-10 px-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="w-full h-10 px-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#BE9089]"
               >
                 {colors.map(color => (
                   <option key={color.name} value={color.name}>
@@ -870,7 +848,7 @@ export default function OrdersSettingsPage() {
               <button 
                 onClick={addTag} 
                 className="btn-success relative top-[-2px]"
-                disabled={!newTagName.trim()}
+                disabled={!newTagName.trim() || tags.some(t => t.name.toLowerCase() === newTagName.trim().toLowerCase() && t.id !== editingTagId)}
               >
                 {editingTagId ? <Check className="w-4 h-4 mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
                 {editingTagId ? 'Salvar' : 'Adicionar'}

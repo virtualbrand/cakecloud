@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { User, Mail, Phone, MapPin, Camera, Save, SwitchCamera, CircleX, CreditCard } from 'lucide-react'
+import { User, Mail, Phone, MapPin, Camera, Check, SwitchCamera, CircleX, CreditCard } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { showToast } from '@/app/(dashboard)/layout'
 
@@ -638,12 +638,7 @@ export default function ProfilePage() {
           <button
             type="submit"
             disabled={saving || !hasChanges}
-            className={`inline-flex items-center gap-2 ${
-              !hasChanges 
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed rounded-full font-semibold text-sm'
-                : 'btn-success'
-            }`}
-            style={!hasChanges ? { padding: '8px 22px' } : undefined}
+            className="btn-success disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
@@ -652,7 +647,7 @@ export default function ProfilePage() {
               </>
             ) : (
               <>
-                <Save className="w-4 h-4" />
+                <Check className="w-4 h-4" />
                 Salvar Alterações
               </>
             )}
