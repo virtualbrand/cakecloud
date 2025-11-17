@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { User, Phone, Mail, ShoppingBag, X, Search, Info, ArrowDownAZ, ArrowDownZA, Camera, SwitchCamera, CircleX, Trash2, CircleAlert } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { showToast } from '@/app/(dashboard)/layout'
+import { useCustomerSettings } from '@/hooks/useCustomerSettings'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -85,6 +86,7 @@ const validateEmail = (email: string): boolean => {
 }
 
 export default function CustomersPage() {
+  const customerSettings = useCustomerSettings()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -502,18 +504,20 @@ export default function CustomersPage() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-melon)] to-[var(--color-old-rose)] flex items-center justify-center overflow-hidden relative">
-                    {customer.avatar_url ? (
-                      <Image
-                        src={customer.avatar_url}
-                        alt={customer.name}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <User className="w-6 h-6 text-white" />
-                    )}
-                  </div>
+                  {customerSettings.showPhoto && (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-melon)] to-[var(--color-old-rose)] flex items-center justify-center overflow-hidden relative">
+                      {customer.avatar_url ? (
+                        <Image
+                          src={customer.avatar_url}
+                          alt={customer.name}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <User className="w-6 h-6 text-white" />
+                      )}
+                    </div>
+                  )}
                   <div>
                     <h3 className="font-semibold text-gray-900">{customer.name}</h3>
                     <div className="flex items-center gap-4 mt-1">
@@ -572,64 +576,66 @@ export default function CustomersPage() {
 
             <form onSubmit={editingCustomer ? handleUpdateCustomer : handleSubmit} className="p-6 space-y-4">
               {/* Foto do Cliente */}
-              <div className="mb-6 pb-6 border-b border-gray-200">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <label className="cursor-pointer group">
-                      <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center relative">
-                        {avatarPreview ? (
-                          <>
-                            <Image 
-                              src={avatarPreview} 
-                              alt="Preview" 
-                              fill
-                              className="object-cover" 
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <div className="bg-white bg-opacity-90 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                                <SwitchCamera className="w-5 h-5 text-gray-700" />
+              {customerSettings.showPhoto && (
+                <div className="mb-6 pb-6 border-b border-gray-200">
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <label className="cursor-pointer group">
+                        <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center relative">
+                          {avatarPreview ? (
+                            <>
+                              <Image 
+                                src={avatarPreview} 
+                                alt="Preview" 
+                                fill
+                                className="object-cover" 
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div className="bg-white bg-opacity-90 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                                  <SwitchCamera className="w-5 h-5 text-gray-700" />
+                                </div>
                               </div>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <User className="w-12 h-12 text-gray-400 group-hover:text-gray-500 transition-colors" />
-                            <div className="absolute inset-0 bg-gray-100 group-hover:bg-gray-200 transition-colors flex items-center justify-center">
-                              <div className="flex flex-col items-center">
-                                <Camera className="w-6 h-6 text-gray-400" />
-                                <span className="text-xs text-gray-500 mt-1">Adicionar</span>
+                            </>
+                          ) : (
+                            <>
+                              <User className="w-12 h-12 text-gray-400 group-hover:text-gray-500 transition-colors" />
+                              <div className="absolute inset-0 bg-gray-100 group-hover:bg-gray-200 transition-colors flex items-center justify-center">
+                                <div className="flex flex-col items-center">
+                                  <Camera className="w-6 h-6 text-gray-400" />
+                                  <span className="text-xs text-gray-500 mt-1">Adicionar</span>
+                                </div>
                               </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarChange}
-                        className="hidden"
-                      />
-                    </label>
-                    {avatarPreview && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAvatarPreview(null)
-                          setFormData(prev => ({ ...prev, avatar: null }))
-                        }}
-                        className="absolute -top-1 -right-1 hover:scale-110 transition-transform"
-                      >
-                        <CircleX className="w-5 h-5 text-[#D67973] hover:text-[#C86561] transition-colors" />
-                      </button>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">JPG, PNG ou GIF (máx. 2MB)</p>
-                    <p className="text-sm text-gray-400 mt-1">Clique na foto para alterar</p>
+                            </>
+                          )}
+                        </div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          className="hidden"
+                        />
+                      </label>
+                      {avatarPreview && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAvatarPreview(null)
+                            setFormData(prev => ({ ...prev, avatar: null }))
+                          }}
+                          className="absolute -top-1 -right-1 hover:scale-110 transition-transform"
+                        >
+                          <CircleX className="w-5 h-5 text-[#D67973] hover:text-[#C86561] transition-colors" />
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">JPG, PNG ou GIF (máx. 2MB)</p>
+                      <p className="text-sm text-gray-400 mt-1">Clique na foto para alterar</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -651,26 +657,28 @@ export default function CustomersPage() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  CPF/CNPJ
-                </label>
-                <input
-                  type="text"
-                  name="cpf_cnpj"
-                  value={formData.cpf_cnpj}
-                  onChange={handleInputChange}
-                  onBlur={() => handleBlur('cpf_cnpj')}
-                  maxLength={18}
-                  className={`w-full px-3 py-2 border ${
-                    touched.cpf_cnpj && errors.cpf_cnpj ? 'border-[#D67973]' : 'border-gray-300'
-                  } rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 transition-colors bg-white`}
-                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                />
-                {touched.cpf_cnpj && errors.cpf_cnpj && (
-                  <p className="text-sm text-[#D67973] mt-1">{errors.cpf_cnpj}</p>
-                )}
-              </div>
+              {customerSettings.showCpfCnpj && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    CPF/CNPJ
+                  </label>
+                  <input
+                    type="text"
+                    name="cpf_cnpj"
+                    value={formData.cpf_cnpj}
+                    onChange={handleInputChange}
+                    onBlur={() => handleBlur('cpf_cnpj')}
+                    maxLength={18}
+                    className={`w-full px-3 py-2 border ${
+                      touched.cpf_cnpj && errors.cpf_cnpj ? 'border-[#D67973]' : 'border-gray-300'
+                    } rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 transition-colors bg-white`}
+                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  />
+                  {touched.cpf_cnpj && errors.cpf_cnpj && (
+                    <p className="text-sm text-[#D67973] mt-1">{errors.cpf_cnpj}</p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

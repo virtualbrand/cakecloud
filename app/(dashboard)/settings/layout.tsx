@@ -14,7 +14,8 @@ import {
   MessageCircle,
   MessageSquare,
   Calendar,
-  DollarSign
+  DollarSign,
+  UserCog
 } from 'lucide-react'
 
 const settingsNavigation = [
@@ -59,6 +60,12 @@ const settingsNavigation = [
     href: '/settings/orders', 
     icon: ShoppingCart,
     description: 'Configurações de pedidos'
+  },
+  { 
+    name: 'Clientes', 
+    href: '/settings/customers', 
+    icon: UserCog,
+    description: 'Configurações de clientes'
   },
   { 
     name: 'Mensagens', 
