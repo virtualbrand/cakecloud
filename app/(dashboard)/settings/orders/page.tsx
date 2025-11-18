@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, X, Tag, FolderOpen, CircleDot, Eye, Check } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Plus, X, Tag, FolderOpen, CircleDot, Eye, Check, FileText } from 'lucide-react'
 import { showToast } from '@/app/(dashboard)/layout'
 
 interface Status {
@@ -72,6 +73,15 @@ export default function OrdersSettingsPage() {
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [editingTagId, setEditingTagId] = useState<string | null>(null)
+
+  // Configuração de título alternativo
+  const [enableAlternativeTitle, setEnableAlternativeTitle] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ordersEnableAlternativeTitle')
+      return saved === 'true'
+    }
+    return false
+  })
 
   // Carregar dados do banco de dados
   useEffect(() => {
@@ -458,8 +468,49 @@ export default function OrdersSettingsPage() {
 
   const dateExamples = getDateExamples()
 
+  const toggleAlternativeTitle = () => {
+    const newValue = !enableAlternativeTitle
+    setEnableAlternativeTitle(newValue)
+    localStorage.setItem('ordersEnableAlternativeTitle', String(newValue))
+    
+    showToast({
+      title: newValue ? 'Título alternativo habilitado!' : 'Título alternativo desabilitado!',
+      message: newValue 
+        ? 'O título alternativo será exibido quando preenchido nos pedidos.' 
+        : 'O título padrão será exibido em todos os pedidos.',
+      variant: 'success',
+      duration: 3000,
+    })
+  }
+
   return (
     <div className="space-y-6">
+      {/* Título Alternativo */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <FileText className="w-5 h-5 text-gray-700" />
+          <h2 className="text-lg font-semibold text-gray-900">Título Alternativo do Pedido</h2>
+        </div>
+        <p className="text-sm text-gray-600 mb-6">
+          Quando habilitado, permite adicionar um título personalizado aos pedidos. Se preenchido, o título será exibido no formato: "Título Alternativo - Cliente".
+        </p>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <label className="text-sm font-medium text-gray-900">
+              Habilitar título alternativo de pedido
+            </label>
+            <p className="text-xs text-gray-500 mt-1">
+              Adicione um campo extra no formulário de pedidos
+            </p>
+          </div>
+          <Switch
+            checked={enableAlternativeTitle}
+            onCheckedChange={toggleAlternativeTitle}
+          />
+        </div>
+      </div>
+
       {/* Visualização Padrão */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center gap-2 mb-4">

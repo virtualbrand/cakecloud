@@ -114,6 +114,7 @@ type Order = {
   product_id?: string
   deliveryDate: Date
   status: 'pending' | 'in-progress' | 'completed'
+  title?: string
   notes?: string
   phone?: string
   value?: number
@@ -139,6 +140,14 @@ type Product = {
   available?: boolean
 }
 
+// Helper para formatar o título do pedido
+const getOrderTitle = (order: Order, enableAlternativeTitle: boolean): string => {
+  if (enableAlternativeTitle && order.title) {
+    return `${order.title} - ${order.customer}`
+  }
+  return order.customer
+}
+
 // Componente de célula droppable do calendário
 function DroppableCalendarCell({ date, children }: { 
   date: Date; 
@@ -162,7 +171,7 @@ function DroppableCalendarCell({ date, children }: {
 }
 
 // Componente de pedido draggable simplificado para o calendário
-function DraggableCalendarOrder({ order, onClick }: { order: Order; onClick: () => void }) {
+function DraggableCalendarOrder({ order, onClick, enableAlternativeTitle }: { order: Order; onClick: () => void; enableAlternativeTitle: boolean }) {
   const {
     attributes,
     listeners,
@@ -204,7 +213,7 @@ function DraggableCalendarOrder({ order, onClick }: { order: Order; onClick: () 
       className="text-xs px-2 py-1 mb-1 rounded bg-white border border-gray-200 cursor-move hover:shadow-md hover:border-pink-300 transition-all flex items-center gap-1"
     >
       <div className={`w-2 h-2 rounded-full ${getStatusBadgeColor(order.status)}`} />
-      <span className="truncate flex-1">{order.customer}</span>
+      <span className="truncate flex-1">{getOrderTitle(order, enableAlternativeTitle)}</span>
       <span className="text-gray-500 text-[10px]">
         {order.deliveryDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
       </span>
@@ -213,7 +222,7 @@ function DraggableCalendarOrder({ order, onClick }: { order: Order; onClick: () 
 }
 
 // Componente de card draggable
-function SortableOrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
+function SortableOrderCard({ order, onClick, enableAlternativeTitle }: { order: Order; onClick: () => void; enableAlternativeTitle: boolean }) {
   const {
     setNodeRef,
     transform,
@@ -262,7 +271,7 @@ function SortableOrderCard({ order, onClick }: { order: Order; onClick: () => vo
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-4 mb-2">
             <div>
-              <h3 className="font-medium text-gray-900 mb-1">{order.customer}</h3>
+              <h3 className="font-medium text-gray-900 mb-1">{getOrderTitle(order, enableAlternativeTitle)}</h3>
               <p className="text-sm text-gray-600">{order.product}</p>
             </div>
             <Badge variant="outline" className={`${getStatusBadgeColor(order.status)} shrink-0`}>
@@ -317,11 +326,41 @@ export default function OrdersPage() {
   const [loadingProducts, setLoadingProducts] = useState(true)
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
+  const [enableAlternativeTitle, setEnableAlternativeTitle] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ordersEnableAlternativeTitle')
+      return saved === 'true'
+    }
+    return false
+  })
   const [newCustomerData, setNewCustomerData] = useState({
     name: '',
     email: '',
     phone: '',
   })
+
+  // Listener para detectar mudanças no localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem('ordersEnableAlternativeTitle')
+      setEnableAlternativeTitle(saved === 'true')
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Também verifica ao montar o componente
+    const checkInterval = setInterval(() => {
+      const saved = localStorage.getItem('ordersEnableAlternativeTitle')
+      if ((saved === 'true') !== enableAlternativeTitle) {
+        setEnableAlternativeTitle(saved === 'true')
+      }
+    }, 500)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(checkInterval)
+    }
+  }, [enableAlternativeTitle])
   const [newProductData, setNewProductData] = useState({
     name: '',
     description: '',
@@ -335,6 +374,7 @@ export default function OrdersPage() {
     productId: '',
     deliveryDateTime: undefined as Date | undefined,
     status: 'pending' as Order['status'],
+    title: '',
     phone: '',
     value: '',
     notes: ''
@@ -567,6 +607,7 @@ export default function OrdersPage() {
       productId: order.product_id || '',
       deliveryDateTime: order.deliveryDate,
       status: order.status,
+      title: order.title || '',
       phone: order.phone || '',
       value: formatCurrency((order.value || 0).toFixed(2).replace('.', ',')),
       notes: order.notes || ''
@@ -586,6 +627,7 @@ export default function OrdersPage() {
       productId: '',
       deliveryDateTime: undefined,
       status: 'pending' as Order['status'],
+      title: '',
       phone: '',
       value: '',
       notes: ''
@@ -603,6 +645,7 @@ export default function OrdersPage() {
       productId: '',
       deliveryDateTime: undefined,
       status: 'pending',
+      title: '',
       phone: '',
       value: '',
       notes: ''
@@ -634,6 +677,7 @@ export default function OrdersPage() {
         product_id: formData.productId || null,
         delivery_date: formData.deliveryDateTime.toISOString(),
         status: formData.status,
+        title: formData.title || null,
         phone: formData.phone || null,
         value: formData.value, // API will parse Brazilian format
         notes: formData.notes || null,
@@ -1279,6 +1323,7 @@ export default function OrdersPage() {
                               key={order.id}
                               order={order}
                               onClick={() => handleOrderClick(order)}
+                              enableAlternativeTitle={enableAlternativeTitle}
                             />
                           ))}
                         </div>
@@ -1346,6 +1391,7 @@ export default function OrdersPage() {
                               key={order.id}
                               order={order}
                               onClick={() => handleOrderClick(order)}
+                              enableAlternativeTitle={enableAlternativeTitle}
                             />
                           ))}
                         </div>
@@ -1433,6 +1479,7 @@ export default function OrdersPage() {
                                 key={order.id}
                                 order={order}
                                 onClick={() => handleOrderClick(order)}
+                                enableAlternativeTitle={enableAlternativeTitle}
                               />
                             ))}
                           </DroppableCalendarCell>
@@ -1482,7 +1529,7 @@ export default function OrdersPage() {
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
-                                <h4 className="font-semibold text-gray-900 mb-1">{order.customer}</h4>
+                                <h4 className="font-semibold text-gray-900 mb-1">{getOrderTitle(order, enableAlternativeTitle)}</h4>
                                 <p className="text-sm text-gray-600 mb-2">{order.product}</p>
                                 
                                 <div className="flex items-center gap-3 text-xs text-gray-500">
@@ -1538,6 +1585,22 @@ export default function OrdersPage() {
           title={isEditing ? 'Editar Pedido' : 'Novo Pedido'}
         >
           <form onSubmit={handleSubmit} className="space-y-4">
+            {enableAlternativeTitle && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Título do pedido
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
+                  placeholder="Ex: Aniversário, Casamento, etc."
+                />
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Cliente *

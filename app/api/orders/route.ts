@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { customer, customer_id, product, product_id, delivery_date, status, phone, value, notes } = body
+    const { customer, customer_id, product, product_id, delivery_date, status, title, phone, value, notes } = body
 
     // Validações
     if (!customer || !product || !delivery_date) {
@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
         product_id,
         delivery_date,
         status: status || 'pending',
+        title,
         phone,
         value: parsedValue,
         notes
@@ -113,7 +114,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { customer, customer_id, product, product_id, delivery_date, status, phone, value, notes } = body
+    const { customer, customer_id, product, product_id, delivery_date, status, title, phone, value, notes } = body
 
     // Parse do valor (formato brasileiro: R$ 1.000,00)
     let parsedValue = null
@@ -136,6 +137,7 @@ export async function PATCH(request: NextRequest) {
         product_id,
         delivery_date,
         status,
+        title,
         phone,
         value: parsedValue,
         notes,

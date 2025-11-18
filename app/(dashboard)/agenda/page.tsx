@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Modal from '@/components/Modal'
@@ -40,9 +41,18 @@ import {
   Info,
   Trash2,
   CircleAlert,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Combobox } from '@/components/ui/combobox'
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from '@/components/ui/carousel'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -115,12 +125,16 @@ type Order = {
   product_id?: string
   deliveryDate: Date
   status: 'pending' | 'in-progress' | 'completed'
+  title?: string
   notes?: string
   phone?: string
   value?: number
   color?: 'green' | 'blue' | 'red' | 'yellow'
   tags?: string[]
   category?: string
+  images?: string[]
+  task_name?: string
+  categories?: string[]
 }
 
 type Customer = {
@@ -434,9 +448,14 @@ export default function AgendaPage() {
     productId: '',
     deliveryDateTime: undefined as Date | undefined,
     status: 'pending' as Order['status'],
+    title: '',
     phone: '',
     value: '',
-    notes: ''
+    notes: '',
+    task_name: '',
+    images: [] as string[],
+    selectedCategories: [] as string[],
+    selectedTags: [] as string[]
   })
 
   // Drag and drop sensors
@@ -667,9 +686,14 @@ export default function AgendaPage() {
       productId: order.product_id || '',
       deliveryDateTime: order.deliveryDate,
       status: order.status,
+      title: order.title || '',
       phone: order.phone || '',
       value: formatCurrency((order.value || 0).toFixed(2).replace('.', ',')),
-      notes: order.notes || ''
+      notes: order.notes || '',
+      task_name: order.task_name || '',
+      images: order.images || [],
+      selectedCategories: order.categories || [],
+      selectedTags: order.tags || []
     })
     setIsModalOpen(true)
   }
@@ -686,9 +710,14 @@ export default function AgendaPage() {
       productId: '',
       deliveryDateTime: undefined,
       status: 'pending' as Order['status'],
+      title: '',
       phone: '',
       value: '',
-      notes: ''
+      notes: '',
+      task_name: '',
+      images: [],
+      selectedCategories: [],
+      selectedTags: []
     })
   }
 
@@ -703,9 +732,14 @@ export default function AgendaPage() {
       productId: '',
       deliveryDateTime: undefined,
       status: 'pending',
+      title: '',
       phone: '',
       value: '',
-      notes: ''
+      notes: '',
+      task_name: '',
+      images: [],
+      selectedCategories: [],
+      selectedTags: []
     })
     setIsModalOpen(true)
   }
@@ -715,28 +749,86 @@ export default function AgendaPage() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  // Handler para upload de imagens
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+
+    const newImages: string[] = []
+    const maxImages = 10 // Limite de imagens
+
+    Array.from(files).slice(0, maxImages - formData.images.length).forEach((file) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          newImages.push(reader.result)
+          if (newImages.length === Math.min(files.length, maxImages - formData.images.length)) {
+            setFormData(prev => ({
+              ...prev,
+              images: [...prev.images, ...newImages]
+            }))
+          }
+        }
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  // Handler para remover imagem
+  const handleRemoveImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }))
+  }
+
+  // Handler para toggle de categoria
+  const toggleCategory = (categoryName: string) => {
+    setFormData(prev => ({
+      ...prev,
+      selectedCategories: prev.selectedCategories.includes(categoryName)
+        ? prev.selectedCategories.filter(c => c !== categoryName)
+        : [...prev.selectedCategories, categoryName]
+    }))
+  }
+
+  // Handler para toggle de tag
+  const toggleTag = (tagName: string) => {
+    setFormData(prev => ({
+      ...prev,
+      selectedTags: prev.selectedTags.includes(tagName)
+        ? prev.selectedTags.filter(t => t !== tagName)
+        : [...prev.selectedTags, tagName]
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     try {
       // Validações básicas
-      if (!formData.customer || !formData.product || !formData.deliveryDateTime) {
-        alert('Preencha todos os campos obrigatórios: Cliente, Produto e Data/Hora de Entrega')
+      if (!formData.task_name || !formData.deliveryDateTime) {
+        alert('Preencha todos os campos obrigatórios: Nome da Tarefa e Data/Hora')
         setIsSubmitting(false)
         return
       }
 
       // Prepare order data
       const orderData = {
-        customer: formData.customer,
+        customer: formData.customer || 'Sem cliente',
         customer_id: formData.customerId || null,
-        product: formData.product,
+        product: formData.product || 'Sem produto',
         product_id: formData.productId || null,
         delivery_date: formData.deliveryDateTime.toISOString(),
         status: formData.status,
+        title: formData.title || null,
         phone: formData.phone || null,
         value: formData.value, // API will parse Brazilian format
         notes: formData.notes || null,
+        task_name: formData.task_name,
+        images: formData.images,
+        categories: formData.selectedCategories,
+        tags: formData.selectedTags,
       }
 
       const url = editingOrderId 
@@ -767,16 +859,16 @@ export default function AgendaPage() {
       if (editingOrderId) {
         setOrders(orders.map(o => o.id === editingOrderId ? orderWithDate : o))
         showToast({
-          title: 'Pedido atualizado!',
-          message: 'O pedido foi atualizado com sucesso.',
+          title: 'Tarefa atualizada!',
+          message: 'A tarefa foi atualizada com sucesso.',
           variant: 'success',
           duration: 3000,
         })
       } else {
         setOrders([orderWithDate, ...orders])
         showToast({
-          title: 'Pedido criado!',
-          message: 'O pedido foi criado com sucesso.',
+          title: 'Tarefa criada!',
+          message: 'A tarefa foi criada com sucesso.',
           variant: 'success',
           duration: 3000,
         })
@@ -784,9 +876,9 @@ export default function AgendaPage() {
 
       handleCloseModal()
     } catch (error) {
-      console.error('Erro ao salvar pedido:', error)
+      console.error('Erro ao salvar tarefa:', error)
       showToast({
-        title: 'Erro ao salvar pedido',
+        title: 'Erro ao salvar tarefa',
         message: error instanceof Error ? error.message : 'Tente novamente.',
         variant: 'error',
         duration: 4000,
@@ -805,24 +897,24 @@ export default function AgendaPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Erro ao deletar pedido')
+        throw new Error('Erro ao deletar tarefa')
       }
 
       // Remove from orders list
       setOrders(orders.filter(o => o.id !== selectedOrder.id))
       setDeleteDialogOpen(false)
       showToast({
-        title: 'Pedido excluído!',
-        message: 'O pedido foi excluído com sucesso.',
+        title: 'Tarefa excluída!',
+        message: 'A tarefa foi excluída com sucesso.',
         variant: 'success',
         duration: 3000,
       })
       handleCloseModal()
     } catch (error) {
-      console.error('Erro ao deletar pedido:', error)
+      console.error('Erro ao deletar tarefa:', error)
       showToast({
-        title: 'Erro ao excluir pedido',
-        message: 'Não foi possível excluir o pedido. Tente novamente.',
+        title: 'Erro ao excluir tarefa',
+        message: 'Não foi possível excluir a tarefa. Tente novamente.',
         variant: 'error',
         duration: 4000,
       })
@@ -1106,7 +1198,7 @@ export default function AgendaPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="filter-button h-10 cursor-pointer font-normal"
+                className="filter-button h-10 cursor-pointer"
                 onClick={() => {
                   setShowStatusFilter(!showStatusFilter)
                   setShowTagFilter(false)
@@ -1130,7 +1222,7 @@ export default function AgendaPage() {
                       onClick={() => toggleFilter(status.id)}
                       className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
                     >
-                      <Badge className={`${getColorClass(status.color)} border text-xs px-2 py-1`}>
+                      <Badge className={`${getColorClass(status.color)} border text-xs !font-normal px-2 py-1`}>
                         {status.name}
                       </Badge>
                       {activeFilters.includes(status.id) && (
@@ -1148,7 +1240,7 @@ export default function AgendaPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="filter-button h-10 cursor-pointer font-normal"
+                className="filter-button h-10 cursor-pointer"
                 onClick={() => {
                   setShowCategoryFilter(!showCategoryFilter)
                   setShowTagFilter(false)
@@ -1172,7 +1264,7 @@ export default function AgendaPage() {
                       onClick={() => toggleFilter(category.name)}
                       className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
                     >
-                      <Badge className={`${getColorClass(category.color)} border text-xs px-2 py-1`}>
+                      <Badge className={`${getColorClass(category.color)} border text-xs !font-normal px-2 py-1`}>
                         {category.name}
                       </Badge>
                       {activeFilters.includes(category.name) && (
@@ -1190,7 +1282,7 @@ export default function AgendaPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="filter-button h-10 cursor-pointer font-normal"
+                className="filter-button h-10 cursor-pointer"
                 onClick={() => {
                   setShowTagFilter(!showTagFilter)
                   setShowCategoryFilter(false)
@@ -1214,7 +1306,7 @@ export default function AgendaPage() {
                       onClick={() => toggleFilter(tag.name)}
                       className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left cursor-pointer"
                     >
-                      <Badge className={`${getColorClass(tag.color)} border text-xs px-2 py-1`}>
+                      <Badge className={`${getColorClass(tag.color)} border text-xs !font-normal px-2 py-1`}>
                         {tag.name}
                       </Badge>
                       {activeFilters.includes(tag.name) && (
@@ -1742,7 +1834,7 @@ export default function AgendaPage() {
         </div>
       )}
 
-      {/* Modal Pedido */}
+      {/* Modal Tarefa */}
       {isModalOpen && (
         <Modal
           isOpen={isModalOpen}
@@ -1750,88 +1842,35 @@ export default function AgendaPage() {
           title={isEditing ? 'Editar Tarefa' : 'Nova Tarefa'}
         >
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Nome da Tarefa */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Cliente *
+                Nome da Tarefa *
               </label>
-              <Combobox
-                options={customers.map(c => ({
-                  value: c.id,
-                  label: c.name,
-                  subtitle: c.phone
-                }))}
-                value={formData.customerId}
-                onValueChange={(value) => {
-                  const selectedCustomer = customers.find(c => c.id === value)
-                  setFormData(prev => ({
-                    ...prev,
-                    customerId: value,
-                    customer: selectedCustomer?.name || '',
-                    phone: selectedCustomer?.phone || prev.phone
-                  }))
-                }}
-                placeholder="Selecione ou busque um cliente"
-                onCreateNew={(searchTerm) => {
-                  setNewCustomerData(prev => ({ ...prev, name: searchTerm }))
-                  setIsCustomerModalOpen(true)
-                }}
-                createNewLabel="Adicionar"
-                loading={loadingCustomers}
+              <input
+                type="text"
+                name="task_name"
+                value={formData.task_name}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
+                placeholder="Ex: Post Instagram, Reunião Cliente, Ideia Produto"
               />
             </div>
 
+            {/* Data e Hora */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Produto *
-              </label>
-              <Combobox
-                options={products.map(p => ({
-                  value: p.id,
-                  label: p.name,
-                  subtitle: p.selling_price ? `R$ ${formatBRL(p.selling_price)}` : undefined
-                }))}
-                value={formData.productId}
-                onValueChange={(value) => {
-                  const selectedProduct = products.find(p => p.id === value)
-                  if (selectedProduct?.selling_price) {
-                    // Converte o preço para o formato esperado pelo input (sem R$ e separadores)
-                    const priceFormatted = formatBRL(selectedProduct.selling_price)
-                    setFormData(prev => ({
-                      ...prev,
-                      productId: value,
-                      product: selectedProduct?.name || '',
-                      value: priceFormatted
-                    }))
-                  } else {
-                    setFormData(prev => ({
-                      ...prev,
-                      productId: value,
-                      product: selectedProduct?.name || ''
-                    }))
-                  }
-                }}
-                placeholder="Selecione ou busque um produto"
-                onCreateNew={(searchTerm) => {
-                  setNewProductData(prev => ({ ...prev, name: searchTerm }))
-                  setIsProductModalOpen(true)
-                }}
-                createNewLabel="Adicionar"
-                loading={loadingProducts}
-              />
-            </div>
-
-            {/* Data e Hora de Entrega */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Data e Hora de Entrega *
+                Data e Hora *
               </label>
               <DateTimePicker
                 value={formData.deliveryDateTime}
                 onChange={(date) => setFormData(prev => ({ ...prev, deliveryDateTime: date }))}
-                placeholder="Selecione a data e hora da entrega"
+                placeholder="Selecione a data e hora"
               />
             </div>
 
+            {/* Status */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Status *
@@ -1843,51 +1882,135 @@ export default function AgendaPage() {
                 required
                 className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-500 bg-white"
               >
-                <option value="pending">Pendente</option>
-                <option value="in-progress">Em Andamento</option>
-                <option value="completed">Concluído</option>
+                {allStatuses.map(status => (
+                  <option key={status.id} value={status.id}>
+                    {status.name}
+                  </option>
+                ))}
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Telefone
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={(e) => {
-                  const formatted = formatPhone(e.target.value)
-                  setFormData(prev => ({ ...prev, phone: formatted }))
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
-                placeholder="(00) 00000-0000"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Valor
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
-                  R$
-                </span>
-                <input
-                  type="text"
-                  name="value"
-                  value={formData.value}
-                  onChange={(e) => {
-                    const formatted = formatCurrency(e.target.value)
-                    setFormData(prev => ({ ...prev, value: formatted }))
-                  }}
-                  className="w-full pl-12 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
-                  placeholder="0,00"
-                />
+            {/* Categorias */}
+            {allCategories.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Categorias
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {allCategories.map(category => (
+                    <Badge
+                      key={category.id}
+                      onClick={() => toggleCategory(category.name)}
+                      className={`cursor-pointer transition-all ${
+                        formData.selectedCategories.includes(category.name)
+                          ? `${getColorClass(category.color)} border-2`
+                          : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+                      }`}
+                      style={{ fontWeight: 600 }}
+                    >
+                      {category.name}
+                      {formData.selectedCategories.includes(category.name) && (
+                        <X className="h-3 w-3 ml-1" />
+                      )}
+                    </Badge>
+                  ))}
+                </div>
               </div>
+            )}
+
+            {/* Tags */}
+            {allTags.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tags
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {allTags.map(tag => (
+                    <Badge
+                      key={tag.id}
+                      onClick={() => toggleTag(tag.name)}
+                      className={`cursor-pointer transition-all ${
+                        formData.selectedTags.includes(tag.name)
+                          ? `${getColorClass(tag.color)} border-2`
+                          : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+                      }`}
+                      style={{ fontWeight: 600 }}
+                    >
+                      {tag.name}
+                      {formData.selectedTags.includes(tag.name) && (
+                        <X className="h-3 w-3 ml-1" />
+                      )}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Upload de Imagens */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Imagens
+              </label>
+              
+              {/* Preview das imagens com carrossel */}
+              {formData.images.length > 0 && (
+                <div className="mb-3">
+                  <Carousel className="w-full max-w-full mb-2">
+                    <CarouselContent>
+                      {formData.images.map((image, index) => (
+                        <CarouselItem key={index}>
+                          <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                            <Image 
+                              src={image} 
+                              alt={`Upload ${index + 1}`}
+                              fill
+                              className="object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(index)}
+                              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors z-10"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    {formData.images.length > 1 && (
+                      <>
+                        <CarouselPrevious />
+                        <CarouselNext />
+                      </>
+                    )}
+                  </Carousel>
+                  <p className="text-xs text-gray-500 text-center">
+                    {formData.images.length} imagem(ns) adicionada(s)
+                  </p>
+                </div>
+              )}
+
+              {/* Botão de upload */}
+              {formData.images.length < 10 && (
+                <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-[var(--color-old-rose)] hover:bg-pink-50 transition-colors">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Upload className="h-5 w-5" />
+                    <span className="text-sm font-medium">
+                      Adicionar imagens ({formData.images.length}/10)
+                    </span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </label>
+              )}
             </div>
 
+            {/* Observações */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Observações
@@ -1898,7 +2021,7 @@ export default function AgendaPage() {
                 onChange={handleInputChange}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 resize-none bg-white"
-                placeholder="Observações sobre o pedido"
+                placeholder="Anotações, detalhes ou lembretes sobre esta tarefa"
               />
             </div>
 
