@@ -164,8 +164,11 @@ export default function ProfilePage() {
           variant: 'error',
           duration: 3000,
         })
+        setLoading(false)
         return
       }
+
+      console.log('User loaded:', { id: user.id, email: user.email })
 
       const { data, error } = await supabase
         .from('profiles')
@@ -173,9 +176,34 @@ export default function ProfilePage() {
         .eq('id', user.id)
         .single()
 
+      console.log('Profile query result:', { data, error, errorCode: error?.code, errorMessage: error?.message })
+
       if (error && error.code !== 'PGRST116') {
+        console.error('Error loading profile:', error)
+        // Se o erro for de permissão/RLS, continua sem profile
+        if (error.code === '42501' || error.message?.includes('policy')) {
+          console.warn('RLS policy error, creating new profile data')
+          const newData = {
+            id: user.id,
+            email: user.email || '',
+            full_name: '',
+            phone: '',
+            cpf_cnpj: '',
+            address: '',
+            city: '',
+            state: '',
+            zip_code: '',
+            avatar_url: null
+          }
+          setProfileData(newData)
+          setOriginalProfileData(newData)
+          setLoading(false)
+          return
+        }
         throw error
       }
+
+      console.log('Profile data loaded:', data)
 
       if (data) {
         const loadedData = {
@@ -190,8 +218,15 @@ export default function ProfilePage() {
           zip_code: data.zip_code || '',
           avatar_url: data.avatar_url || null
         }
+        console.log('Setting profile data:', loadedData)
+        console.log('Full name from data:', data.full_name)
         setProfileData(loadedData)
         setOriginalProfileData(loadedData)
+        
+        // Force re-render
+        setTimeout(() => {
+          console.log('Profile data after setState:', profileData)
+        }, 100)
         
         if (data.avatar_url) {
           const { data: { publicUrl } } = supabase.storage
@@ -200,10 +235,18 @@ export default function ProfilePage() {
           setAvatarPreview(publicUrl)
         }
       } else {
+        // Se não existe perfil, cria dados iniciais com o email do auth
         const newData = {
-          ...profileData,
           id: user.id,
-          email: user.email || ''
+          email: user.email || '',
+          full_name: '',
+          phone: '',
+          cpf_cnpj: '',
+          address: '',
+          city: '',
+          state: '',
+          zip_code: '',
+          avatar_url: null
         }
         setProfileData(newData)
         setOriginalProfileData(newData)
@@ -263,6 +306,18 @@ export default function ProfilePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validação: Nome completo é obrigatório
+    if (!profileData.full_name || profileData.full_name.trim() === '') {
+      showToast({
+        title: 'Erro',
+        message: 'Nome completo é obrigatório',
+        variant: 'error',
+        duration: 3000,
+      })
+      return
+    }
+    
     setSaving(true)
 
     try {

@@ -7,6 +7,8 @@ import { User, Phone, Mail, ShoppingBag, X, Search, Info, ArrowDownAZ, ArrowDown
 import { Input } from '@/components/ui/input'
 import { showToast } from '@/app/(dashboard)/layout'
 import { useCustomerSettings } from '@/hooks/useCustomerSettings'
+import { createClient } from '@/lib/supabase/client'
+import SuperAdminCustomers from './SuperAdminCustomers'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +18,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+} from "@/components/ui/alert-dialog"
 
 type Customer = {
   id: string
@@ -99,6 +101,8 @@ export default function CustomersPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [customerToDelete, setCustomerToDelete] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [userRole, setUserRole] = useState<string>('admin')
+  const [loadingRole, setLoadingRole] = useState(true)
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -122,11 +126,6 @@ export default function CustomersPage() {
     notes: ''
   })
 
-  // Mock data para demonstração
-  useEffect(() => {
-    fetchCustomers()
-  }, [])
-
   const fetchCustomers = async () => {
     try {
       const response = await fetch('/api/customers')
@@ -136,6 +135,43 @@ export default function CustomersPage() {
     } catch (error) {
       console.error('Error fetching customers:', error)
     }
+  }
+
+  const loadUserRole = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      
+      if (profile?.role) {
+        setUserRole(profile.role)
+      }
+    }
+    setLoadingRole(false)
+  }
+
+  // Mock data para demonstração
+  useEffect(() => {
+    loadUserRole()
+    fetchCustomers()
+  }, [])
+
+  // Se for superadmin, mostrar componente diferente
+  if (loadingRole) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <div className="text-gray-500">Carregando...</div>
+      </div>
+    )
+  }
+
+  if (userRole === 'superadmin') {
+    return <SuperAdminCustomers />
   }
 
   // Fechar modal com ESC

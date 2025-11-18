@@ -47,6 +47,7 @@ export default function Sidebar({ position = 'sidebar' }: SidebarProps) {
   const router = useRouter()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [userRole, setUserRole] = useState<string>('admin')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [showActivities, setShowActivities] = useState(true)
@@ -63,11 +64,11 @@ export default function Sidebar({ position = 'sidebar' }: SidebarProps) {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
       
-      // Carrega o avatar do perfil
+      // Carrega o avatar e role do perfil
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('avatar_url')
+          .select('avatar_url, role')
           .eq('id', user.id)
           .single()
         
@@ -76,6 +77,10 @@ export default function Sidebar({ position = 'sidebar' }: SidebarProps) {
             .from('avatars')
             .getPublicUrl(profile.avatar_url)
           setAvatarUrl(publicUrl)
+        }
+        
+        if (profile?.role) {
+          setUserRole(profile.role)
         }
       }
     }
@@ -183,6 +188,11 @@ export default function Sidebar({ position = 'sidebar' }: SidebarProps) {
     return pathname.startsWith(href)
   }
 
+  // Filtrar menu items baseado no role do usuário
+  const filteredMenuItems = userRole === 'superadmin'
+    ? menuItems.filter(item => item.href === '/' || item.href === '/customers')
+    : menuItems
+
   // Layout Horizontal (Header/Footer)
   if (menuPosition === 'header' || menuPosition === 'footer') {
     return (
@@ -194,7 +204,7 @@ export default function Sidebar({ position = 'sidebar' }: SidebarProps) {
 
         {/* Main Menu - Horizontal */}
         <div className="flex items-center gap-2">
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const Icon = item.icon
             const active = isActive(item.href)
             
@@ -216,7 +226,7 @@ export default function Sidebar({ position = 'sidebar' }: SidebarProps) {
             )
           })}
 
-          {showActivities && (
+          {showActivities && userRole !== 'superadmin' && (
             <Link
               href="/activities"
               className={`
@@ -420,7 +430,7 @@ export default function Sidebar({ position = 'sidebar' }: SidebarProps) {
         {/* Main Menu */}
         <div className="flex-1 overflow-y-auto px-3 py-2">
           <div className="space-y-1">
-            {menuItems.map((item) => {
+            {filteredMenuItems.map((item) => {
               const Icon = item.icon
               const active = isActive(item.href)
               
@@ -445,7 +455,7 @@ export default function Sidebar({ position = 'sidebar' }: SidebarProps) {
             })}
 
             {/* Item Atividades (condicional) */}
-            {showActivities && (
+            {showActivities && userRole !== 'superadmin' && (
               <Link
                 href="/activities"
                 className={`

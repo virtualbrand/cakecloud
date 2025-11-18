@@ -1,4 +1,257 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { TrendingUp, TrendingDown, DollarSign, Users, Package, ShoppingCart, Target, Percent, Award, Info } from 'lucide-react'
+
 export default function Home() {
+  const [userRole, setUserRole] = useState<string>('admin')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadUserRole = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        
+        if (profile?.role) {
+          setUserRole(profile.role)
+        }
+      }
+      setLoading(false)
+    }
+    
+    loadUserRole()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <div className="text-gray-500">Carregando...</div>
+      </div>
+    )
+  }
+
+  // Dashboard para SuperAdmin (SaaS Metrics)
+  if (userRole === 'superadmin') {
+    return (
+      <div className="p-8">
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard SaaS</h1>
+          <p className="text-gray-500 mt-1">Métricas de crescimento e performance do CakeCloud</p>
+        </div>
+
+        {/* Métricas de Receita */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Receita e Crescimento</h2>
+            <div className="group relative">
+              <Info className="w-4 h-4 text-gray-400 cursor-help" />
+              <div className="invisible group-hover:visible absolute left-0 top-full mt-2 w-[400px] bg-white text-[var(--color-licorice)] text-sm rounded-lg shadow-lg z-50 border border-gray-200 p-4">
+                <strong>MRR</strong> (Monthly Recurring Revenue): Receita recorrente mensal de todas as assinaturas ativas.<br/><br/>
+                <strong>ARR</strong> (Annual Recurring Revenue): Projeção anual da receita recorrente (MRR × 12).<br/><br/>
+                <strong>Crescimento MoM</strong>: Taxa de crescimento mês sobre mês.<br/><br/>
+                <strong>Crescimento YoY</strong>: Taxa de crescimento ano sobre ano.
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-green-600" />
+                </div>
+                <span className="text-sm text-green-600 font-semibold flex items-center gap-1">
+                  <TrendingUp className="w-4 h-4" />
+                  +15.3%
+                </span>
+              </div>
+              <h3 className="text-gray-600 text-sm mb-1">MRR</h3>
+              <p className="text-3xl font-bold text-gray-900">R$ 45.200</p>
+              <p className="text-xs text-gray-400 mt-2">Monthly Recurring Revenue</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-blue-600" />
+                </div>
+                <span className="text-sm text-blue-600 font-semibold flex items-center gap-1">
+                  <TrendingUp className="w-4 h-4" />
+                  +18.5%
+                </span>
+              </div>
+              <h3 className="text-gray-600 text-sm mb-1">ARR</h3>
+              <p className="text-3xl font-bold text-gray-900">R$ 542.4K</p>
+              <p className="text-xs text-gray-400 mt-2">Annual Recurring Revenue</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-purple-600" />
+                </div>
+                <span className="text-sm text-purple-600 font-semibold">MoM</span>
+              </div>
+              <h3 className="text-gray-600 text-sm mb-1">Crescimento MoM</h3>
+              <p className="text-3xl font-bold text-gray-900">+12.8%</p>
+              <p className="text-xs text-gray-400 mt-2">Mês sobre mês</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-orange-600" />
+                </div>
+                <span className="text-sm text-orange-600 font-semibold">YoY</span>
+              </div>
+              <h3 className="text-gray-600 text-sm mb-1">Crescimento YoY</h3>
+              <p className="text-3xl font-bold text-gray-900">+156%</p>
+              <p className="text-xs text-gray-400 mt-2">Ano sobre ano</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Métricas de Cliente */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Métricas de Cliente</h2>
+            <div className="group relative">
+              <Info className="w-4 h-4 text-gray-400 cursor-help" />
+              <div className="invisible group-hover:visible absolute left-0 top-full mt-2 w-[400px] bg-white text-[var(--color-licorice)] text-sm rounded-lg shadow-lg z-50 border border-gray-200 p-4">
+                <strong>CAC</strong> (Customer Acquisition Cost): Custo médio para adquirir cada novo cliente (marketing + vendas).<br/><br/>
+                <strong>LTV</strong> (Lifetime Value): Valor total que um cliente gera durante todo o relacionamento. Ideal: LTV:CAC ≥ 3:1.<br/><br/>
+                <strong>Churn Rate</strong>: Taxa de cancelamento mensal. Abaixo de 5-7% é considerado saudável para SaaS.<br/><br/>
+                <strong>Total Clientes</strong>: Número total de assinantes ativos no momento.
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+                  <Target className="w-6 h-6 text-pink-600" />
+                </div>
+                <span className="text-sm text-green-600 font-semibold flex items-center gap-1">
+                  <TrendingDown className="w-4 h-4" />
+                  -8%
+                </span>
+              </div>
+              <h3 className="text-gray-600 text-sm mb-1">CAC</h3>
+              <p className="text-3xl font-bold text-gray-900">R$ 285</p>
+              <p className="text-xs text-gray-400 mt-2">Customer Acquisition Cost</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <Award className="w-6 h-6 text-indigo-600" />
+                </div>
+                <span className="text-sm text-indigo-600 font-semibold">3.8:1</span>
+              </div>
+              <h3 className="text-gray-600 text-sm mb-1">LTV</h3>
+              <p className="text-3xl font-bold text-gray-900">R$ 1.083</p>
+              <p className="text-xs text-gray-400 mt-2">Lifetime Value</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                  <Percent className="w-6 h-6 text-red-600" />
+                </div>
+                <span className="text-sm text-red-600 font-semibold flex items-center gap-1">
+                  <TrendingUp className="w-4 h-4" />
+                  +0.5%
+                </span>
+              </div>
+              <h3 className="text-gray-600 text-sm mb-1">Churn Rate</h3>
+              <p className="text-3xl font-bold text-gray-900">4.2%</p>
+              <p className="text-xs text-gray-400 mt-2">Taxa de cancelamento mensal</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-teal-600" />
+                </div>
+                <span className="text-sm text-teal-600 font-semibold flex items-center gap-1">
+                  <TrendingUp className="w-4 h-4" />
+                  +23
+                </span>
+              </div>
+              <h3 className="text-gray-600 text-sm mb-1">Total Clientes</h3>
+              <p className="text-3xl font-bold text-gray-900">187</p>
+              <p className="text-xs text-gray-400 mt-2">Assinantes ativos</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Métricas de Produto */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Métricas de Engajamento</h2>
+            <div className="group relative">
+              <Info className="w-4 h-4 text-gray-400 cursor-help" />
+              <div className="invisible group-hover:visible absolute left-0 top-full mt-2 w-[400px] bg-white text-[var(--color-licorice)] text-sm rounded-lg shadow-lg z-50 border border-gray-200 p-4">
+                <strong>Taxa de Ativação</strong>: Percentual de clientes que efetivamente começaram a usar o produto após assinar.<br/><br/>
+                <strong>NPS Score</strong> (Net Promoter Score): Métrica de satisfação. Acima de 50 é excelente, 70+ é excepcional.<br/><br/>
+                <strong>Time to Value</strong>: Tempo médio até o cliente gerar seu primeiro resultado ou valor com o produto.
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-cyan-100 rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-cyan-600" />
+                </div>
+                <span className="text-sm text-cyan-600 font-semibold">65%</span>
+              </div>
+              <h3 className="text-gray-600 text-sm mb-1">Taxa de Ativação</h3>
+              <p className="text-3xl font-bold text-gray-900">122/187</p>
+              <p className="text-xs text-gray-400 mt-2">Clientes que começaram a usar</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
+                  <Award className="w-6 h-6 text-amber-600" />
+                </div>
+                <span className="text-sm text-green-600 font-semibold flex items-center gap-1">
+                  <TrendingUp className="w-4 h-4" />
+                  +5pts
+                </span>
+              </div>
+              <h3 className="text-gray-600 text-sm mb-1">NPS Score</h3>
+              <p className="text-3xl font-bold text-gray-900">72</p>
+              <p className="text-xs text-gray-400 mt-2">Net Promoter Score</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 bg-lime-100 rounded-lg flex items-center justify-center">
+                  <Package className="w-6 h-6 text-lime-600" />
+                </div>
+                <span className="text-sm text-lime-600 font-semibold">4.5 dias</span>
+              </div>
+              <h3 className="text-gray-600 text-sm mb-1">Time to Value</h3>
+              <p className="text-3xl font-bold text-gray-900">~5 dias</p>
+              <p className="text-xs text-gray-400 mt-2">Tempo até primeiro valor gerado</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Dashboard para Admin/Member (Métricas de Confeitaria)
   return (
     <div className="p-8">
       {/* Page Header */}
@@ -12,7 +265,7 @@ export default function Home() {
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
-              <span className="text-2xl">📦</span>
+              <Package className="w-6 h-6 text-pink-600" />
             </div>
             <span className="text-sm text-green-600 font-semibold">+2.08%</span>
           </div>
@@ -24,7 +277,7 @@ export default function Home() {
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <span className="text-2xl">�</span>
+              <ShoppingCart className="w-6 h-6 text-blue-600" />
             </div>
             <span className="text-sm text-red-600 font-semibold">-2.08%</span>
           </div>
@@ -36,7 +289,7 @@ export default function Home() {
         <div className="bg-white rounded-xl p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <span className="text-2xl">💰</span>
+              <DollarSign className="w-6 h-6 text-purple-600" />
             </div>
             <span className="text-sm text-green-600 font-semibold">+25.8%</span>
           </div>
@@ -105,5 +358,5 @@ export default function Home() {
         </div>
       </div>
     </div>
-  );
+  )
 }
