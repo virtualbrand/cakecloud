@@ -2,9 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { DollarSign, TrendingUp, TrendingDown, Calendar, CreditCard, Info } from 'lucide-react'
+import TransactionModal from '@/components/financeiro/TransactionModal'
 
 export default function FinanceiroPage() {
   const [showTransactionMenu, setShowTransactionMenu] = useState(false)
+  const [modalType, setModalType] = useState<'receita' | 'despesa' | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const handleTransactionSuccess = () => {
+    setRefreshKey(prev => prev + 1)
+    // TODO: Fetch updated transactions and summary
+  }
 
   // Fechar menu ao clicar fora
   useEffect(() => {
@@ -57,7 +65,7 @@ export default function FinanceiroPage() {
                 <button
                   onClick={() => {
                     setShowTransactionMenu(false)
-                    // TODO: Abrir modal de receita
+                    setModalType('receita')
                   }}
                   className="w-full px-4 py-3 text-left hover:bg-green-50 transition-colors flex items-center gap-3 rounded-lg mx-2"
                   style={{ width: 'calc(100% - 1rem)' }}
@@ -68,7 +76,7 @@ export default function FinanceiroPage() {
                 <button
                   onClick={() => {
                     setShowTransactionMenu(false)
-                    // TODO: Abrir modal de despesa
+                    setModalType('despesa')
                   }}
                   className="w-full px-4 py-3 text-left hover:bg-red-50 transition-colors flex items-center gap-3 rounded-lg mx-2"
                   style={{ width: 'calc(100% - 1rem)' }}
@@ -141,6 +149,16 @@ export default function FinanceiroPage() {
           <strong>Em desenvolvimento:</strong> Esta funcionalidade será expandida em breve com gráficos, relatórios detalhados e muito mais!
         </p>
       </div>
+
+      {/* Transaction Modal */}
+      {modalType && (
+        <TransactionModal
+          isOpen={modalType !== null}
+          onClose={() => setModalType(null)}
+          type={modalType}
+          onSuccess={handleTransactionSuccess}
+        />
+      )}
     </div>
   )
 }
