@@ -161,19 +161,6 @@ export default function CustomersPage() {
     fetchCustomers()
   }, [])
 
-  // Se for superadmin, mostrar componente diferente
-  if (loadingRole) {
-    return (
-      <div className="p-8 flex items-center justify-center min-h-screen">
-        <div className="text-gray-500">Carregando...</div>
-      </div>
-    )
-  }
-
-  if (userRole === 'superadmin') {
-    return <SuperAdminCustomers />
-  }
-
   // Fechar modal com ESC
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -190,6 +177,19 @@ export default function CustomersPage() {
     window.addEventListener('keydown', handleEsc)
     return () => window.removeEventListener('keydown', handleEsc)
   }, [isModalOpen, selectedCustomer])
+
+  // Se for superadmin, mostrar componente diferente
+  if (loadingRole) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <div className="text-gray-500">Carregando...</div>
+      </div>
+    )
+  }
+
+  if (userRole === 'superadmin') {
+    return <SuperAdminCustomers />
+  }
 
   const closeModal = () => {
     setIsModalOpen(false)

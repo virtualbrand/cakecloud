@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { TrendingUp, TrendingDown, DollarSign, Users, Package, ShoppingCart, Target, Percent, Award, Info } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, Users, Package, ShoppingCart, Target, Percent, Award, Info, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function Home() {
   const [userRole, setUserRole] = useState<string>('admin')
   const [loading, setLoading] = useState(true)
+  const [currentDate, setCurrentDate] = useState(new Date())
 
   useEffect(() => {
     const loadUserRole = async () => {
@@ -30,6 +31,26 @@ export default function Home() {
     loadUserRole()
   }, [])
 
+  const handlePreviousMonth = () => {
+    setCurrentDate(prev => {
+      const newDate = new Date(prev)
+      newDate.setMonth(newDate.getMonth() - 1)
+      return newDate
+    })
+  }
+
+  const handleNextMonth = () => {
+    setCurrentDate(prev => {
+      const newDate = new Date(prev)
+      newDate.setMonth(newDate.getMonth() + 1)
+      return newDate
+    })
+  }
+
+  const formatMonthYear = (date: Date) => {
+    return date.toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })
+  }
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
@@ -43,9 +64,30 @@ export default function Home() {
     return (
       <div className="p-8">
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard SaaS</h1>
-          <p className="text-gray-500 mt-1">Métricas de crescimento e performance do CakeCloud</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard SaaS</h1>
+            <p className="text-gray-500 mt-1">Métricas de crescimento e performance do CakeCloud</p>
+          </div>
+          
+          {/* Filtro de Mês/Ano */}
+          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-4 py-2">
+            <button
+              onClick={handlePreviousMonth}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <span className="text-sm font-medium text-gray-900 min-w-[80px] text-center">
+              {formatMonthYear(currentDate)}
+            </span>
+            <button
+              onClick={handleNextMonth}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Métricas de Receita */}
@@ -75,7 +117,7 @@ export default function Home() {
               </div>
               <h3 className="text-gray-600 text-sm mb-1">MRR</h3>
               <p className="text-3xl font-bold text-gray-900">R$ 45.200</p>
-              <p className="text-xs text-gray-400 mt-2">Monthly Recurring Revenue</p>
+              <p className="text-xs text-gray-400 mt-2">Receita Recorrente Mensal</p>
             </div>
 
             <div className="bg-white rounded-xl p-6 border border-gray-200">
@@ -90,7 +132,7 @@ export default function Home() {
               </div>
               <h3 className="text-gray-600 text-sm mb-1">ARR</h3>
               <p className="text-3xl font-bold text-gray-900">R$ 542.4K</p>
-              <p className="text-xs text-gray-400 mt-2">Annual Recurring Revenue</p>
+              <p className="text-xs text-gray-400 mt-2">Receita Recorrente Anual</p>
             </div>
 
             <div className="bg-white rounded-xl p-6 border border-gray-200">
@@ -146,7 +188,7 @@ export default function Home() {
               </div>
               <h3 className="text-gray-600 text-sm mb-1">CAC</h3>
               <p className="text-3xl font-bold text-gray-900">R$ 285</p>
-              <p className="text-xs text-gray-400 mt-2">Customer Acquisition Cost</p>
+              <p className="text-xs text-gray-400 mt-2">Custo de Aquisição do Cliente</p>
             </div>
 
             <div className="bg-white rounded-xl p-6 border border-gray-200">

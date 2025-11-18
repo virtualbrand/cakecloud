@@ -186,7 +186,7 @@ export default function SuperAdminCustomers() {
       expired: 'Expirado'
     }
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${badges[status as keyof typeof badges]}`}>
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${badges[status as keyof typeof badges]}`}>
         {labels[status as keyof typeof labels]}
       </span>
     )
@@ -204,7 +204,7 @@ export default function SuperAdminCustomers() {
       scale: 'Scale'
     }
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${badges[plan as keyof typeof badges]}`}>
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${badges[plan as keyof typeof badges]}`}>
         {labels[plan as keyof typeof labels]}
       </span>
     )
