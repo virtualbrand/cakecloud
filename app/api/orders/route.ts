@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { customer, customer_id, product, product_id, delivery_date, status, title, phone, value, notes } = body
+    const { type, customer, customer_id, product, product_id, delivery_date, status, title, phone, value, notes, task_name, images, categories, tags } = body
 
     // Validações
     if (!customer || !product || !delivery_date) {
@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       .from('orders')
       .insert({
         user_id: user.id,
+        type: type || 'order', // Default para 'order' se não especificado
         customer,
         customer_id,
         product,
@@ -78,7 +79,11 @@ export async function POST(request: NextRequest) {
         title,
         phone,
         value: parsedValue,
-        notes
+        notes,
+        task_name,
+        images,
+        categories,
+        tags
       })
       .select()
       .single()
@@ -114,7 +119,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { customer, customer_id, product, product_id, delivery_date, status, title, phone, value, notes } = body
+    const { type, customer, customer_id, product, product_id, delivery_date, status, title, phone, value, notes, task_name, images, categories, tags } = body
 
     // Parse do valor (formato brasileiro: R$ 1.000,00)
     let parsedValue = null
@@ -128,21 +133,32 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Atualiza o pedido
+    const updateData: any = {
+      customer,
+      customer_id,
+      product,
+      product_id,
+      delivery_date,
+      status,
+      title,
+      phone,
+      value: parsedValue,
+      notes,
+      task_name,
+      images,
+      categories,
+      tags,
+      updated_at: new Date().toISOString()
+    }
+    
+    // Apenas inclui type se for fornecido (para não sobrescrever)
+    if (type !== undefined) {
+      updateData.type = type
+    }
+
     const { data, error } = await supabase
       .from('orders')
-      .update({
-        customer,
-        customer_id,
-        product,
-        product_id,
-        delivery_date,
-        status,
-        title,
-        phone,
-        value: parsedValue,
-        notes,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()

@@ -475,6 +475,7 @@ export default function OrdersPage() {
           const ordersData = await ordersRes.json()
           // Converte as datas do banco para objetos Date
           const ordersWithDates = ordersData
+            .filter((order: { type?: string }) => !order.type || order.type === 'order') // Filtra apenas pedidos (não tarefas)
             .filter((order: { delivery_date?: string }) => order.delivery_date) // Filtra pedidos sem data
             .map((order: Order & { delivery_date: string }) => ({
               ...order,
@@ -671,6 +672,7 @@ export default function OrdersPage() {
 
       // Prepare order data
       const orderData = {
+        type: 'order', // Marca como pedido (não tarefa da Agenda)
         customer: formData.customer,
         customer_id: formData.customerId || null,
         product: formData.product,

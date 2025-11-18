@@ -10,8 +10,10 @@ import { showToast } from '@/app/(dashboard)/layout'
 import {
   DndContext,
   closestCenter,
+  closestCorners,
   KeyboardSensor,
   PointerSensor,
+  MouseSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -124,7 +126,7 @@ type Order = {
   product: string
   product_id?: string
   deliveryDate: Date
-  status: 'pending' | 'in-progress' | 'completed'
+  status: string
   title?: string
   notes?: string
   phone?: string
@@ -219,7 +221,7 @@ function DraggableCalendarOrder({ order, onClick }: { order: Order; onClick: () 
       className="text-xs px-2 py-1 mb-1 rounded bg-white border border-gray-200 cursor-move hover:shadow-md hover:border-pink-300 transition-all flex items-center gap-1"
     >
       <div className={`w-2 h-2 rounded-full ${getStatusBadgeColor(order.status)}`} />
-      <span className="truncate flex-1">{order.customer}</span>
+      <span className="truncate flex-1">{order.task_name || order.product || order.customer}</span>
       <span className="text-gray-500 text-[10px]">
         {order.deliveryDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
       </span>
@@ -276,14 +278,29 @@ function SortableOrderCard({ order, onClick }: { order: Order; onClick: () => vo
         
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-4 mb-2">
-            <div>
-              <h3 className="font-medium text-gray-900 mb-1">{order.customer}</h3>
-              <p className="text-sm text-gray-600">{order.product}</p>
+            <div className="flex-1">
+              {order.task_name && (
+                <h3 className="font-semibold text-gray-900 mb-1">{order.task_name}</h3>
+              )}
+              <p className="text-sm text-gray-600">{order.customer}</p>
+              {order.product !== 'Sem produto' && (
+                <p className="text-xs text-gray-500">{order.product}</p>
+              )}
             </div>
             <Badge variant="outline" className={`${getStatusBadgeColor(order.status)} shrink-0`}>
               {getStatusText(order.status)}
             </Badge>
           </div>
+          
+          {order.categories && order.categories.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {order.categories.map(cat => (
+                <Badge key={cat} variant="secondary" className="text-xs px-2 py-0.5">
+                  {cat}
+                </Badge>
+              ))}
+            </div>
+          )}
           
           <div className="flex items-center gap-4 text-sm text-gray-500">
             <div className="flex items-center gap-1">
@@ -294,6 +311,12 @@ function SortableOrderCard({ order, onClick }: { order: Order; onClick: () => vo
               <div className="flex items-center gap-1">
                 <Package className="h-4 w-4" />
                 <span>R$ {order.value.toFixed(2).replace('.', ',')}</span>
+              </div>
+            )}
+            {order.images && order.images.length > 0 && (
+              <div className="flex items-center gap-1">
+                <ImageIcon className="h-4 w-4" />
+                <span>{order.images.length}</span>
               </div>
             )}
           </div>
@@ -316,7 +339,7 @@ function KanbanOrderCard({ order, onClick }: { order: Order; onClick: () => void
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || 'transform 200ms ease',
     opacity: isDragging ? 0.5 : 1,
   }
 
@@ -327,10 +350,25 @@ function KanbanOrderCard({ order, onClick }: { order: Order; onClick: () => void
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className="bg-white border border-gray-200 rounded-lg p-4 mb-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow duration-200"
+      className="bg-white border border-gray-200 rounded-lg p-4 mb-3 cursor-grab active:cursor-grabbing hover:shadow-lg hover:border-pink-300 transition-all duration-200"
     >
-      <h4 className="font-medium text-gray-900 mb-2">{order.customer}</h4>
-      <p className="text-sm text-gray-600 mb-3">{order.product}</p>
+      {order.task_name && (
+        <h4 className="font-semibold text-gray-900 mb-2">{order.task_name}</h4>
+      )}
+      <p className="text-sm text-gray-700 mb-1">{order.customer}</p>
+      {order.product !== 'Sem produto' && (
+        <p className="text-xs text-gray-500 mb-3">{order.product}</p>
+      )}
+      
+      {order.categories && order.categories.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          {order.categories.map(cat => (
+            <Badge key={cat} variant="secondary" className="text-[10px] px-1.5 py-0.5">
+              {cat}
+            </Badge>
+          ))}
+        </div>
+      )}
       
       <div className="flex items-center justify-between text-xs text-gray-500">
         <div className="flex items-center gap-1">
@@ -342,11 +380,19 @@ function KanbanOrderCard({ order, onClick }: { order: Order; onClick: () => void
           </span>
         </div>
         
-        {order.value && (
-          <span className="font-medium text-green-700">
-            R$ {order.value.toFixed(2).replace('.', ',')}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {order.images && order.images.length > 0 && (
+            <div className="flex items-center gap-1">
+              <ImageIcon className="h-3 w-3" />
+              <span>{order.images.length}</span>
+            </div>
+          )}
+          {order.value && (
+            <span className="font-medium text-green-700">
+              R$ {order.value.toFixed(2).replace('.', ',')}
+            </span>
+          )}
+        </div>
       </div>
       
       {(order.tags && order.tags.length > 0) && (
@@ -458,11 +504,16 @@ export default function AgendaPage() {
     selectedTags: [] as string[]
   })
 
-  // Drag and drop sensors
+  // Drag and drop sensors - otimizado para experiência mais fluida
   const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 5, // Menor distância para iniciar o drag
+      },
+    }),
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5, // Reduzido de 8 para 5 para mais responsividade
       },
     }),
     useSensor(KeyboardSensor, {
@@ -471,7 +522,7 @@ export default function AgendaPage() {
   )
 
   // Handle drag end
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
 
     if (!over) return
@@ -506,32 +557,67 @@ export default function AgendaPage() {
         variant: 'success',
         duration: 3000,
       })
-    } else if (targetId === 'pending' || targetId === 'in-progress' || targetId === 'completed') {
-      // Mudança de status no Kanban
+    } else if (allStatuses.some(status => status.id === targetId)) {
+      // Mudança de status no Kanban (usando status dinâmicos)
+      const targetStatus = allStatuses.find(s => s.id === targetId)
+      const order = orders.find(o => o.id === orderId)
+      
+      if (!targetStatus || !order) return
+
+      // Atualizar o status localmente
       setOrders((items) => {
         return items.map((item) => {
           if (item.id === orderId) {
             return {
               ...item,
-              status: targetId as 'pending' | 'in-progress' | 'completed',
+              status: targetId,
             }
           }
           return item
         })
       })
 
-      const statusNames = {
-        pending: 'Pendente',
-        'in-progress': 'Em Andamento',
-        completed: 'Concluído'
-      }
+      // Atualizar no banco de dados
+      try {
+        const response = await fetch(`/api/orders?id=${orderId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: targetId,
+          }),
+        })
 
-      showToast({
-        title: 'Status atualizado!',
-        message: `Pedido movido para ${statusNames[targetId as keyof typeof statusNames]}`,
-        variant: 'success',
-        duration: 3000,
-      })
+        if (!response.ok) {
+          throw new Error('Erro ao atualizar status')
+        }
+
+        showToast({
+          title: 'Status atualizado!',
+          message: `Tarefa movida para ${targetStatus.name}`,
+          variant: 'success',
+          duration: 3000,
+        })
+      } catch (error) {
+        console.error('Erro ao atualizar status:', error)
+        showToast({
+          title: 'Erro ao atualizar status',
+          message: 'Tente novamente',
+          variant: 'error',
+          duration: 3000,
+        })
+        
+        // Reverter mudança local em caso de erro
+        setOrders((items) => {
+          return items.map((item) => {
+            if (item.id === orderId) {
+              return order
+            }
+            return item
+          })
+        })
+      }
     } else if (active.id !== over.id) {
       // Reordenação dentro da mesma data (lista)
       setOrders((items) => {
@@ -580,12 +666,27 @@ export default function AgendaPage() {
 
         if (ordersRes.ok) {
           const ordersData = await ordersRes.json()
-          // Converte as datas do banco para objetos Date
-          const ordersWithDates = ordersData
-            .filter((order: { delivery_date?: string }) => order.delivery_date) // Filtra pedidos sem data
-            .map((order: Order & { delivery_date: string }) => ({
-              ...order,
-              deliveryDate: new Date(order.delivery_date)
+          // Converte as datas do banco para objetos Date e mapeia os campos
+          const ordersWithDates: Order[] = ordersData
+            .filter((order: any) => order.type === 'task') // Filtra apenas tarefas da Agenda
+            .filter((order: any) => order.delivery_date) // Filtra pedidos sem data
+            .map((order: any) => ({
+              id: order.id,
+              customer: order.customer,
+              customer_id: order.customer_id,
+              product: order.product,
+              product_id: order.product_id,
+              deliveryDate: new Date(order.delivery_date),
+              status: order.status,
+              title: order.title,
+              notes: order.notes,
+              phone: order.phone,
+              value: order.value,
+              tags: order.tags,
+              category: order.category,
+              images: order.images,
+              task_name: order.task_name,
+              categories: order.categories,
             }))
           setOrders(ordersWithDates)
         }
@@ -815,6 +916,7 @@ export default function AgendaPage() {
 
       // Prepare order data
       const orderData = {
+        type: 'task', // Marca como tarefa da Agenda
         customer: formData.customer || 'Sem cliente',
         customer_id: formData.customerId || null,
         product: formData.product || 'Sem produto',
@@ -849,10 +951,24 @@ export default function AgendaPage() {
 
       const savedOrder = await response.json()
 
-      // Converte a data do banco para objeto Date
-      const orderWithDate = {
-        ...savedOrder,
-        deliveryDate: new Date(savedOrder.delivery_date)
+      // Converte a data do banco para objeto Date e mapeia os campos
+      const orderWithDate: Order = {
+        id: savedOrder.id,
+        customer: savedOrder.customer,
+        customer_id: savedOrder.customer_id,
+        product: savedOrder.product,
+        product_id: savedOrder.product_id,
+        deliveryDate: new Date(savedOrder.delivery_date),
+        status: savedOrder.status,
+        title: savedOrder.title,
+        notes: savedOrder.notes,
+        phone: savedOrder.phone,
+        value: savedOrder.value,
+        tags: savedOrder.tags,
+        category: savedOrder.category,
+        images: savedOrder.images,
+        task_name: savedOrder.task_name,
+        categories: savedOrder.categories,
       }
 
       // Update orders list
@@ -1467,7 +1583,7 @@ export default function AgendaPage() {
                     
                     <DndContext
                       sensors={sensors}
-                      collisionDetection={closestCenter}
+                      collisionDetection={closestCorners}
                       onDragEnd={handleDragEnd}
                     >
                       <SortableContext
@@ -1496,102 +1612,46 @@ export default function AgendaPage() {
       {view === 'kanban' && (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={closestCorners}
           onDragEnd={handleDragEnd}
         >
-          <div className="grid grid-cols-3 gap-6">
-            {/* Coluna Pendente */}
-            <DroppableKanbanColumn
-              id="pending"
-              title="Pendente"
-              color="bg-yellow-500"
-              badgeColor="bg-yellow-100 text-yellow-800"
-              count={filteredOrders.filter(o => o.status === 'pending').length}
-            >
-              <SortableContext
-                items={filteredOrders.filter(o => o.status === 'pending').map(o => o.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {filteredOrders
-                  .filter(order => order.status === 'pending')
-                  .sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime())
-                  .map(order => (
-                    <KanbanOrderCard
-                      key={order.id}
-                      order={order}
-                      onClick={() => handleOrderClick(order)}
-                    />
-                  ))}
-                {filteredOrders.filter(o => o.status === 'pending').length === 0 && (
-                  <div className="text-center py-12 text-gray-400">
-                    <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Nenhuma tarefa</p>
-                  </div>
-                )}
-              </SortableContext>
-            </DroppableKanbanColumn>
-
-            {/* Coluna Em Andamento */}
-            <DroppableKanbanColumn
-              id="in-progress"
-              title="Em Andamento"
-              color="bg-blue-500"
-              badgeColor="bg-blue-100 text-blue-800"
-              count={filteredOrders.filter(o => o.status === 'in-progress').length}
-            >
-              <SortableContext
-                items={filteredOrders.filter(o => o.status === 'in-progress').map(o => o.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {filteredOrders
-                  .filter(order => order.status === 'in-progress')
-                  .sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime())
-                  .map(order => (
-                    <KanbanOrderCard
-                      key={order.id}
-                      order={order}
-                      onClick={() => handleOrderClick(order)}
-                    />
-                  ))}
-                {filteredOrders.filter(o => o.status === 'in-progress').length === 0 && (
-                  <div className="text-center py-12 text-gray-400">
-                    <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Nenhuma tarefa</p>
-                  </div>
-                )}
-              </SortableContext>
-            </DroppableKanbanColumn>
-
-            {/* Coluna Concluído */}
-            <DroppableKanbanColumn
-              id="completed"
-              title="Concluído"
-              color="bg-green-500"
-              badgeColor="bg-green-100 text-green-800"
-              count={filteredOrders.filter(o => o.status === 'completed').length}
-            >
-              <SortableContext
-                items={filteredOrders.filter(o => o.status === 'completed').map(o => o.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {filteredOrders
-                  .filter(order => order.status === 'completed')
-                  .sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime())
-                  .map(order => (
-                    <KanbanOrderCard
-                      key={order.id}
-                      order={order}
-                      onClick={() => handleOrderClick(order)}
-                    />
-                  ))}
-                {filteredOrders.filter(o => o.status === 'completed').length === 0 && (
-                  <div className="text-center py-12 text-gray-400">
-                    <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Nenhuma tarefa</p>
-                  </div>
-                )}
-              </SortableContext>
-            </DroppableKanbanColumn>
+          <div className={`grid gap-6`} style={{ gridTemplateColumns: `repeat(${allStatuses.length}, minmax(0, 1fr))` }}>
+            {allStatuses.map(status => {
+              const statusOrders = filteredOrders.filter(o => o.status === status.id)
+              const colorClass = getColorClass(status.color)
+              
+              return (
+                <DroppableKanbanColumn
+                  key={status.id}
+                  id={status.id}
+                  title={status.name}
+                  color={colorClass}
+                  badgeColor={colorClass}
+                  count={statusOrders.length}
+                >
+                  <SortableContext
+                    items={statusOrders.map(o => o.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {statusOrders
+                      .sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime())
+                      .map(order => (
+                        <KanbanOrderCard
+                          key={order.id}
+                          order={order}
+                          onClick={() => handleOrderClick(order)}
+                        />
+                      ))}
+                    {statusOrders.length === 0 && (
+                      <div className="text-center py-12 text-gray-400">
+                        <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                        <p className="text-sm">Nenhuma tarefa</p>
+                      </div>
+                    )}
+                  </SortableContext>
+                </DroppableKanbanColumn>
+              )
+            })}
           </div>
         </DndContext>
       )}
@@ -1599,7 +1659,7 @@ export default function AgendaPage() {
       {view === 'month' && (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={closestCorners}
           onDragEnd={handleDragEnd}
         >
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -1670,7 +1730,7 @@ export default function AgendaPage() {
       {view === 'week' && (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={closestCorners}
           onDragEnd={handleDragEnd}
         >
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -1786,8 +1846,12 @@ export default function AgendaPage() {
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
-                                <h4 className="font-semibold text-gray-900 mb-1">{order.customer}</h4>
-                                <p className="text-sm text-gray-600 mb-2">{order.product}</p>
+                                <h4 className="font-semibold text-gray-900 mb-1">
+                                  {order.task_name || order.product || 'Tarefa'}
+                                </h4>
+                                {order.customer && (
+                                  <p className="text-sm text-gray-600 mb-2">{order.customer}</p>
+                                )}
                                 
                                 <div className="flex items-center gap-3 text-xs text-gray-500">
                                   <div className="flex items-center gap-1">
@@ -1809,11 +1873,11 @@ export default function AgendaPage() {
                               </div>
                               
                               <div className="flex flex-col gap-1">
-                                {order.category && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {order.category}
+                                {order.categories?.map(cat => (
+                                  <Badge key={cat} variant="outline" className="text-xs">
+                                    {cat}
                                   </Badge>
-                                )}
+                                ))}
                                 
                                 {order.tags?.map(tag => (
                                   <Badge key={tag} variant="outline" className="text-xs">
