@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         account:financial_accounts(id, name, type),
-        category:financial_categories(id, name, color)
+        category:financial_categories(id, name, color, icon)
       `)
       .eq('user_id', user.id)
       .order('date', { ascending: false })

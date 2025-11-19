@@ -42,6 +42,10 @@ export async function POST(request: Request) {
     }
     
     const body = await request.json()
+    
+    // Gera uma cor aleatória para a categoria (mesmas cores do modal financeiro + #f97316)
+    const colors = ['#E91E63', '#673AB7', '#2196F3', '#03A9F4', '#C2185B', '#F44336', '#FF8A80', '#3F51B5', '#4CAF50', '#FFAB91', '#F8BBD0', '#FF9800', '#FFC107', '#8B4513', '#90CAF9', '#9E9E9E', '#4DB6AC', '#2E7D32', '#80CBC4', '#C62828', '#795548', '#f97316']
+    const randomColor = body.color || colors[Math.floor(Math.random() * colors.length)]
 
     const { data, error } = await supabase
       .from('product_categories')
@@ -49,6 +53,7 @@ export async function POST(request: Request) {
         {
           user_id: user.id,
           name: body.name,
+          color: randomColor,
         }
       ])
       .select()

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import Modal from '@/components/Modal'
 import { DateTimePicker } from '@/components/ui/datetime-picker'
 import { showToast } from '@/app/(dashboard)/layout'
+import PageLoading from '@/components/PageLoading'
 import {
   DndContext,
   closestCenter,
@@ -324,6 +325,7 @@ export default function OrdersPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loadingCustomers, setLoadingCustomers] = useState(true)
   const [loadingProducts, setLoadingProducts] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
   const [enableAlternativeTitle, setEnableAlternativeTitle] = useState(() => {
@@ -454,6 +456,7 @@ export default function OrdersPage() {
   // Carregar clientes e produtos
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true)
       try {
         const [customersRes, productsRes, ordersRes] = await Promise.all([
           fetch('/api/customers'),
@@ -488,6 +491,7 @@ export default function OrdersPage() {
       } finally {
         setLoadingCustomers(false)
         setLoadingProducts(false)
+        setIsLoading(false)
       }
     }
     
@@ -1288,7 +1292,9 @@ export default function OrdersPage() {
 
       {view === 'list' && (
         <div className="space-y-6">
-          {filteredOrders.length === 0 ? (
+          {isLoading ? (
+            <PageLoading />
+          ) : filteredOrders.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>{searchQuery || activeFilters.length > 0 ? 'Nenhum pedido encontrado' : 'Nenhum pedido'}</p>
@@ -1340,12 +1346,16 @@ export default function OrdersPage() {
       )}
 
       {view === 'month' && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <>
+          {isLoading ? (
+            <PageLoading />
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="grid grid-cols-7 border-b border-gray-200">
               {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
                 <div key={day} className="p-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200 last:border-r-0">
@@ -1409,15 +1419,21 @@ export default function OrdersPage() {
             </SortableContext>
           </div>
         </DndContext>
+          )}
+        </>
       )}
 
       {view === 'week' && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <>
+          {isLoading ? (
+            <PageLoading />
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="grid grid-cols-8">
               <div className="p-3 text-sm font-medium text-gray-700 border-r border-b border-gray-200">
                 Horário
@@ -1494,10 +1510,16 @@ export default function OrdersPage() {
             </SortableContext>
           </div>
         </DndContext>
+          )}
+        </>
       )}
 
       {view === 'day' && (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <>
+          {isLoading ? (
+            <PageLoading />
+          ) : (
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="p-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">
               {capitalizeWeekday(currentDate)}, {formatDateDisplay(currentDate)}
@@ -1577,6 +1599,8 @@ export default function OrdersPage() {
             })}
           </div>
         </div>
+          )}
+        </>
       )}
 
       {/* Modal Pedido */}

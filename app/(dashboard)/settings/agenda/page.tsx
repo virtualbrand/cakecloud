@@ -29,28 +29,12 @@ export default function AgendaSettingsPage() {
   const [defaultView, setDefaultView] = useState<'list' | 'kanban' | 'day' | 'week' | 'month'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('agendaDefaultView')
-      return (saved as 'list' | 'kanban' | 'day' | 'week' | 'month') || 'week'
+      return (saved as 'list' | 'kanban' | 'day' | 'week' | 'month') || 'list'
     }
-    return 'week'
-  })
-  
-  const [savedDefaultView, setSavedDefaultView] = useState<'list' | 'kanban' | 'day' | 'week' | 'month'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('agendaDefaultView')
-      return (saved as 'list' | 'kanban' | 'day' | 'week' | 'month') || 'week'
-    }
-    return 'week'
+    return 'list'
   })
   
   const [dateFormat, setDateFormat] = useState<'short' | 'numeric' | 'long'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('agendaDateFormat')
-      return (saved as 'short' | 'numeric' | 'long') || 'numeric'
-    }
-    return 'numeric'
-  })
-  
-  const [savedDateFormat, setSavedDateFormat] = useState<'short' | 'numeric' | 'long'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('agendaDateFormat')
       return (saved as 'short' | 'numeric' | 'long') || 'numeric'
@@ -107,7 +91,6 @@ export default function AgendaSettingsPage() {
 
   const saveDefaultView = () => {
     localStorage.setItem('agendaDefaultView', defaultView)
-    setSavedDefaultView(defaultView)
     
     const viewNames = {
       list: 'Lista',
@@ -125,7 +108,20 @@ export default function AgendaSettingsPage() {
     })
   }
 
-  const hasUnsavedChanges = defaultView !== savedDefaultView
+  const saveDefaultDateFormat = () => {
+    localStorage.setItem('agendaDateFormat', dateFormat)
+    
+    const dateExamples = getDateExamples()
+    
+    showToast({
+      title: 'Preferência salva!',
+      message: `Formato de data alterado para ${dateExamples[dateFormat]}`,
+      variant: 'success',
+      duration: 3000,
+    })
+  }
+
+  const hasUnsavedChanges = false // Não mais necessário
 
   const colors = [
     { name: 'pink', label: 'Rosa', class: 'bg-pink-100 text-pink-800 border-pink-200' },
@@ -444,7 +440,17 @@ export default function AgendaSettingsPage() {
                 name="defaultView"
                 value="list"
                 checked={defaultView === 'list'}
-                onChange={(e) => setDefaultView(e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month')}
+                onChange={(e) => {
+                  const newView = e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month'
+                  setDefaultView(newView)
+                  localStorage.setItem('agendaDefaultView', newView)
+                  showToast({
+                    title: 'Preferência salva!',
+                    message: 'Visualização padrão alterada para Lista',
+                    variant: 'success',
+                    duration: 3000,
+                  })
+                }}
                 className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">Lista</span>
@@ -456,7 +462,17 @@ export default function AgendaSettingsPage() {
                 name="defaultView"
                 value="kanban"
                 checked={defaultView === 'kanban'}
-                onChange={(e) => setDefaultView(e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month')}
+                onChange={(e) => {
+                  const newView = e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month'
+                  setDefaultView(newView)
+                  localStorage.setItem('agendaDefaultView', newView)
+                  showToast({
+                    title: 'Preferência salva!',
+                    message: 'Visualização padrão alterada para Kanban',
+                    variant: 'success',
+                    duration: 3000,
+                  })
+                }}
                 className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">Kanban</span>
@@ -468,7 +484,17 @@ export default function AgendaSettingsPage() {
                 name="defaultView"
                 value="day"
                 checked={defaultView === 'day'}
-                onChange={(e) => setDefaultView(e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month')}
+                onChange={(e) => {
+                  const newView = e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month'
+                  setDefaultView(newView)
+                  localStorage.setItem('agendaDefaultView', newView)
+                  showToast({
+                    title: 'Preferência salva!',
+                    message: 'Visualização padrão alterada para Dia',
+                    variant: 'success',
+                    duration: 3000,
+                  })
+                }}
                 className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">Dia</span>
@@ -480,7 +506,17 @@ export default function AgendaSettingsPage() {
                 name="defaultView"
                 value="week"
                 checked={defaultView === 'week'}
-                onChange={(e) => setDefaultView(e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month')}
+                onChange={(e) => {
+                  const newView = e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month'
+                  setDefaultView(newView)
+                  localStorage.setItem('agendaDefaultView', newView)
+                  showToast({
+                    title: 'Preferência salva!',
+                    message: 'Visualização padrão alterada para Semana',
+                    variant: 'success',
+                    duration: 3000,
+                  })
+                }}
                 className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">Semana</span>
@@ -492,20 +528,21 @@ export default function AgendaSettingsPage() {
                 name="defaultView"
                 value="month"
                 checked={defaultView === 'month'}
-                onChange={(e) => setDefaultView(e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month')}
+                onChange={(e) => {
+                  const newView = e.target.value as 'list' | 'kanban' | 'day' | 'week' | 'month'
+                  setDefaultView(newView)
+                  localStorage.setItem('agendaDefaultView', newView)
+                  showToast({
+                    title: 'Preferência salva!',
+                    message: 'Visualização padrão alterada para Mês',
+                    variant: 'success',
+                    duration: 3000,
+                  })
+                }}
                 className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">Mês</span>
             </label>
-
-            {hasUnsavedChanges && (
-              <button 
-                onClick={saveDefaultView}
-                className="btn-outline-success ml-4"
-              >
-                Salvar Alterações
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -528,7 +565,17 @@ export default function AgendaSettingsPage() {
                 name="dateFormat"
                 value="short"
                 checked={dateFormat === 'short'}
-                onChange={(e) => setDateFormat(e.target.value as 'short' | 'numeric' | 'long')}
+                onChange={(e) => {
+                  const newFormat = e.target.value as 'short' | 'numeric' | 'long'
+                  setDateFormat(newFormat)
+                  localStorage.setItem('agendaDateFormat', newFormat)
+                  showToast({
+                    title: 'Preferência salva!',
+                    message: `Formato de data alterado para ${dateExamples.short}`,
+                    variant: 'success',
+                    duration: 3000,
+                  })
+                }}
                 className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">{dateExamples.short}</span>
@@ -540,7 +587,17 @@ export default function AgendaSettingsPage() {
                 name="dateFormat"
                 value="numeric"
                 checked={dateFormat === 'numeric'}
-                onChange={(e) => setDateFormat(e.target.value as 'short' | 'numeric' | 'long')}
+                onChange={(e) => {
+                  const newFormat = e.target.value as 'short' | 'numeric' | 'long'
+                  setDateFormat(newFormat)
+                  localStorage.setItem('agendaDateFormat', newFormat)
+                  showToast({
+                    title: 'Preferência salva!',
+                    message: `Formato de data alterado para ${dateExamples.numeric}`,
+                    variant: 'success',
+                    duration: 3000,
+                  })
+                }}
                 className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
               />
               <span className="text-sm font-medium text-gray-900">{dateExamples.numeric}</span>
@@ -552,29 +609,21 @@ export default function AgendaSettingsPage() {
                 name="dateFormat"
                 value="long"
                 checked={dateFormat === 'long'}
-                onChange={(e) => setDateFormat(e.target.value as 'short' | 'numeric' | 'long')}
-                className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
-              />
-              <span className="text-sm font-medium text-gray-900">{dateExamples.long}</span>
-            </label>
-
-            {dateFormat !== savedDateFormat && (
-              <button 
-                onClick={() => {
-                  localStorage.setItem('agendaDateFormat', dateFormat)
-                  setSavedDateFormat(dateFormat)
+                onChange={(e) => {
+                  const newFormat = e.target.value as 'short' | 'numeric' | 'long'
+                  setDateFormat(newFormat)
+                  localStorage.setItem('agendaDateFormat', newFormat)
                   showToast({
                     title: 'Preferência salva!',
-                    message: `Formato de data alterado para ${dateExamples[dateFormat]}`,
+                    message: `Formato de data alterado para ${dateExamples.long}`,
                     variant: 'success',
                     duration: 3000,
                   })
                 }}
-                className="btn-outline-success ml-4"
-              >
-                Salvar Alterações
-              </button>
-            )}
+                className="w-4 h-4 text-[#BE9089] focus:ring-[#BE9089]"
+              />
+              <span className="text-sm font-medium text-gray-900">{dateExamples.long}</span>
+            </label>
           </div>
         </div>
       </div>

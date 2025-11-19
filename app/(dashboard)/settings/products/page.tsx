@@ -8,6 +8,7 @@ import { showToast } from '@/app/(dashboard)/layout'
 interface Category {
   id: string
   name: string
+  color?: string
 }
 
 export default function ProductsSettingsPage() {
@@ -338,15 +339,27 @@ export default function ProductsSettingsPage() {
             categories.map((category) => (
               <div
                 key={category.id}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-[var(--color-lavender-blush)] text-[var(--color-old-rose)] border-[var(--color-old-rose)]"
+                className="flex items-center gap-3 py-3 px-4 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-all"
               >
-                <span className="text-xs font-medium">{category.name}</span>
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center border"
+                  style={{ 
+                    backgroundColor: `${category.color || '#f97316'}10`,
+                    borderColor: `${category.color || '#f97316'}40`
+                  }}
+                >
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: category.color || '#f97316' }}
+                  />
+                </div>
+                <span className="text-sm font-medium text-gray-900">{category.name}</span>
                 <button
                   onClick={() => removeCategory(category.id, category.name)}
-                  className="hover:opacity-70"
+                  className="hover:opacity-70 ml-2"
                   title="Remover categoria"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
                 </button>
               </div>
             ))

@@ -1,15 +1,39 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Repeat, MessageSquare, Paperclip, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { 
+  X, Repeat, MessageSquare, Paperclip, ThumbsUp, ThumbsDown, Plus,
+  Lightbulb, Cloud, ClipboardList, Shirt, Settings, Plane, Briefcase, Music, Trophy, Newspaper, Sandwich, 
+  ChefHat, Dices, MapPin, Eye, Link, Heart, Flag, Utensils, Camera, Tag, ShoppingCart, Users,
+  Wrench, Home, BarChart, DollarSign, Lock, Car, Coffee, FileText, MoreHorizontal, Palette, User, PawPrint, Shield, 
+  Sailboat, Star, Sun, Gift, Book, Hospital, Bus, Bird, Package, TreePine, Zap, Droplet, Flame, Wallet, 
+  PiggyBank, Receipt, Coins, HandCoins, CircleDollarSign, CreditCard
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { showToast } from '@/app/(dashboard)/layout'
 
 interface TransactionModalProps {
   isOpen: boolean
   onClose: () => void
   type: 'receita' | 'despesa'
+  transaction?: {
+    id: string
+    description: string
+    amount: number
+    date: string
+    account?: { id: string; name: string }
+    category?: { id: string; name: string; color: string; icon?: string }
+    observation?: string
+    tags?: string[]
+    is_paid: boolean
+    is_recurring?: boolean
+    recurrence_type?: string
+    installment_number?: number
+    total_installments?: number
+  } | null
   onSuccess?: () => void
 }
 
@@ -26,9 +50,21 @@ interface Category {
   name: string
   type: string
   color: string
+  icon?: string
 }
 
-export default function TransactionModal({ isOpen, onClose, type, onSuccess }: TransactionModalProps) {
+const ICON_MAP: Record<string, any> = {
+  Lightbulb, Cloud, ClipboardList, Shirt, Settings, Plane, Briefcase,
+  Music, Trophy, Newspaper, Sandwich, ChefHat, Dices, MapPin,
+  Eye, Link, Heart, Flag, Utensils, Camera, Tag, ShoppingCart, Users,
+  Wrench, Plus, Home, BarChart, DollarSign, Lock, Car, Coffee, FileText,
+  MoreHorizontal, Palette, CreditCard, User, PawPrint, Shield, Sailboat, Star,
+  Sun, Gift, Book, Hospital, Bus, Bird, Package, TreePine, Zap, Droplet,
+  Flame, Wallet, PiggyBank, Receipt, Coins, HandCoins, CircleDollarSign
+}
+
+export default function TransactionModal({ isOpen, onClose, type, transaction, onSuccess }: TransactionModalProps) {
+  const router = useRouter()
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('0,00')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
@@ -47,6 +83,26 @@ export default function TransactionModal({ isOpen, onClose, type, onSuccess }: T
   // Data from API
   const [accounts, setAccounts] = useState<Account[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+
+  // Populate form when editing transaction
+  useEffect(() => {
+    if (transaction) {
+      setDescription(transaction.description)
+      setAmount(transaction.amount.toFixed(2).replace('.', ','))
+      setDate(transaction.date)
+      setAccount(transaction.account?.id || '')
+      setCategory(transaction.category?.id || '')
+      setObservation(transaction.observation || '')
+      setTags(transaction.tags || [])
+      setIsPaid(transaction.is_paid)
+      if (transaction.is_recurring) {
+        setRecurrenceType(transaction.recurrence_type as RecurrenceType)
+        if (transaction.total_installments) {
+          setInstallments(transaction.total_installments.toString())
+        }
+      }
+    }
+  }, [transaction])
 
   // Fetch accounts and categories
   useEffect(() => {
@@ -139,7 +195,12 @@ export default function TransactionModal({ isOpen, onClose, type, onSuccess }: T
 
   const handleSubmit = async () => {
     if (!description || !amount || parseFloat(amount.replace(',', '.')) === 0) {
-      alert('Preencha a descrição e o valor')
+      showToast({
+        title: 'Campos obrigatórios',
+        message: 'Preencha a descrição e o valor',
+        variant: 'error',
+        duration: 3000,
+      })
       return
     }
 
@@ -170,11 +231,23 @@ export default function TransactionModal({ isOpen, onClose, type, onSuccess }: T
         throw new Error('Erro ao salvar transação')
       }
 
+      showToast({
+        title: `${type === 'receita' ? 'Receita' : 'Despesa'} criada!`,
+        message: `"${description}" foi adicionada com sucesso`,
+        variant: 'success',
+        duration: 3000,
+      })
+
       onSuccess?.()
       onClose()
     } catch (error) {
       console.error('Error saving transaction:', error)
-      alert('Erro ao salvar transação. Tente novamente.')
+      showToast({
+        title: 'Erro',
+        message: 'Erro ao salvar transação. Tente novamente.',
+        variant: 'error',
+        duration: 3000,
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -183,7 +256,9 @@ export default function TransactionModal({ isOpen, onClose, type, onSuccess }: T
   if (!isOpen) return null
 
   const isReceita = type === 'receita'
-  const title = isReceita ? 'Nova receita' : 'Nova despesa'
+  const title = transaction 
+    ? (isReceita ? 'Editar receita' : 'Editar despesa')
+    : (isReceita ? 'Nova receita' : 'Nova despesa')
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -233,7 +308,7 @@ export default function TransactionModal({ isOpen, onClose, type, onSuccess }: T
                     value={amount}
                     onChange={handleAmountChange}
                     placeholder="0,00"
-                    className="w-full pl-12 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
+                    className="w-full pl-12 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[var(--color-old-rose)] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
                   />
                 </div>
               </div>
@@ -246,14 +321,26 @@ export default function TransactionModal({ isOpen, onClose, type, onSuccess }: T
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 bg-white"
                   />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                    {isPaid ? (
-                      <ThumbsUp className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <ThumbsDown className="w-4 h-4 text-gray-400" />
-                    )}
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    <div className="h-4 w-px bg-gray-300"></div>
+                    <button
+                      type="button"
+                      onClick={() => setIsPaid(!isPaid)}
+                      className="cursor-pointer transition-all duration-300"
+                      style={{
+                        transform: isPaid ? 'scaleY(1)' : 'scaleY(-1)'
+                      }}
+                    >
+                      <ThumbsUp 
+                        className={`w-4 h-4 transition-colors duration-300 ${
+                          isPaid 
+                            ? 'text-green-600' 
+                            : (new Date(date) < new Date(new Date().setHours(0, 0, 0, 0)) ? 'text-red-600' : 'text-gray-400')
+                        }`}
+                      />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -266,20 +353,28 @@ export default function TransactionModal({ isOpen, onClose, type, onSuccess }: T
                   Conta/Cartão
                 </label>
                 <Select value={account} onValueChange={setAccount}>
-                  <SelectTrigger className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 bg-white">
-                    <SelectValue placeholder="Buscar a conta/cartã" />
+                  <SelectTrigger className="w-full px-3 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 bg-white">
+                    <SelectValue placeholder="Selecione ou busque um conta/cartão" />
                   </SelectTrigger>
                   <SelectContent>
-                    {accounts.map((acc) => (
-                      <SelectItem key={acc.id} value={acc.id}>
-                        {acc.name}
-                      </SelectItem>
-                    ))}
-                    {accounts.length === 0 && (
-                      <div className="px-2 py-1 text-sm text-gray-500">
-                        Nenhuma conta cadastrada
-                      </div>
-                    )}
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {accounts.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.name}
+                        </SelectItem>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose()
+                        router.push('/settings/financeiro')
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-50 text-[var(--color-old-rose)] border-t border-gray-200 mt-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="text-sm">Adicionar</span>
+                    </button>
                   </SelectContent>
                 </Select>
               </div>
@@ -288,20 +383,46 @@ export default function TransactionModal({ isOpen, onClose, type, onSuccess }: T
                   Categoria
                 </label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 bg-white">
-                    <SelectValue placeholder="Buscar a categoria.." />
+                  <SelectTrigger className="w-full px-3 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 bg-white">
+                    <SelectValue placeholder="Selecione ou busque uma categoria" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                    {categories.length === 0 && (
-                      <div className="px-2 py-1 text-sm text-gray-500">
-                        Nenhuma categoria cadastrada
-                      </div>
-                    )}
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {categories.map((cat) => {
+                        const IconComponent = cat.icon && ICON_MAP[cat.icon] ? ICON_MAP[cat.icon] : null
+                        return (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            <div className="flex items-center gap-2">
+                              {IconComponent && (
+                                <div 
+                                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 border"
+                                  style={{ 
+                                    backgroundColor: `${cat.color}20`,
+                                    borderColor: `${cat.color}40`,
+                                    color: cat.color
+                                  }}
+                                >
+                                  <IconComponent className="w-3.5 h-3.5" />
+                                </div>
+                              )}
+                              <span>{cat.name}</span>
+                            </div>
+                          </SelectItem>
+                        )
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose()
+                        const tabType = type === 'receita' ? 'receitas' : 'despesas'
+                        router.push(`/settings/financeiro?tab=${tabType}`)
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-50 text-[var(--color-old-rose)] border-t border-gray-200 mt-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="text-sm">Adicionar</span>
+                    </button>
                   </SelectContent>
                 </Select>
               </div>
@@ -377,7 +498,7 @@ export default function TransactionModal({ isOpen, onClose, type, onSuccess }: T
                         onChange={() => setRecurrenceType('fixa')}
                         className="w-4 h-4 text-green-600"
                       />
-                      <span className="text-sm text-gray-700">é uma {isReceita ? 'receita' : 'despesa'} fixa</span>
+                      <span className="text-sm text-gray-700">é uma {isReceita ? 'receita' : 'despesa'} recorrente</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -398,10 +519,10 @@ export default function TransactionModal({ isOpen, onClose, type, onSuccess }: T
                             min="2"
                             value={installments}
                             onChange={(e) => setInstallments(e.target.value)}
-                            className="w-20 text-center px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 bg-white"
+                            className="w-20 text-center px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 bg-white"
                           />
                           <Select value={installmentPeriod} onValueChange={(value: 'Meses' | 'Semanas') => setInstallmentPeriod(value)}>
-                            <SelectTrigger className="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 bg-white">
+                            <SelectTrigger className="w-28 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 bg-white">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -433,7 +554,7 @@ export default function TransactionModal({ isOpen, onClose, type, onSuccess }: T
                     value={observation}
                     onChange={(e) => setObservation(e.target.value)}
                     placeholder="Adicione uma observação..."
-                    className="w-full min-h-[100px] resize-none px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
+                    className="w-full min-h-[100px] resize-none px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#B3736B] focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
                   />
                   </div>
                 )}

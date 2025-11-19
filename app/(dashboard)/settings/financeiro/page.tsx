@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Plus, Info, GripVertical, Lightbulb, Cloud, ClipboardList, Shirt, Settings, Plane, Briefcase, 
   Music, Trophy, Newspaper, Sandwich, ChefHat, MessageCircle, Dices, MapPin, 
   Eye, Link, Heart, Flag, Utensils, Camera, Tag, ShoppingCart, Users, 
@@ -35,15 +36,24 @@ interface Category {
 }
 
 export default function FinanceiroSettingsPage() {
+  const searchParams = useSearchParams()
   const [categories, setCategories] = useState<Category[]>([])
   const [loadingCategories, setLoadingCategories] = useState(true)
-  const [activeTab, setActiveTab] = useState<'despesas' | 'receitas'>('despesas')
+  const [activeTab, setActiveTab] = useState<'despesas' | 'receitas' | 'contas'>('despesas')
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [dragOverCategory, setDragOverCategory] = useState<string | null>(null)
   const [dropPosition, setDropPosition] = useState<'before' | 'after' | 'inside' | null>(null)
   const [dragOverSubcategory, setDragOverSubcategory] = useState<string | null>(null)
   const [dropPositionSub, setDropPositionSub] = useState<'before' | 'after' | null>(null)
+
+  // Read tab from URL on mount
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'receitas' || tab === 'despesas' || tab === 'contas') {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     fetchCategories()
@@ -442,7 +452,7 @@ export default function FinanceiroSettingsPage() {
         <div className="flex gap-8">
           <button
             onClick={() => setActiveTab('despesas')}
-            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:outline-none ${
               activeTab === 'despesas'
                 ? 'border-[#D67973] text-[#D67973]'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -452,7 +462,7 @@ export default function FinanceiroSettingsPage() {
           </button>
           <button
             onClick={() => setActiveTab('receitas')}
-            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:outline-none ${
               activeTab === 'receitas'
                 ? 'border-[#85A87E] text-[#85A87E]'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -460,17 +470,33 @@ export default function FinanceiroSettingsPage() {
           >
             Receitas
           </button>
+          <button
+            onClick={() => setActiveTab('contas')}
+            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors focus:outline-none focus-visible:outline-none ${
+              activeTab === 'contas'
+                ? 'border-[var(--color-old-rose)] text-[var(--color-old-rose)]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Contas
+          </button>
         </div>
       </div>
 
       {/* Seção de Categorias */}
-      <div>
-        <h3 className="text-base font-semibold text-gray-900 mb-2">
-          Categorias de {activeTab === 'despesas' ? 'Despesas' : 'Receitas'}
-        </h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Organize suas transações financeiras em categorias para melhor controle e análise.
-        </p>
+      {activeTab !== 'contas' && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-base font-semibold text-gray-900">
+              Categorias de {activeTab === 'despesas' ? 'Despesas' : 'Receitas'}
+            </h3>
+          <div className="group relative">
+            <Info className="w-4 h-4 text-gray-400 cursor-help" />
+            <div className="invisible group-hover:visible absolute left-0 top-full mt-2 w-[330px] bg-white text-[var(--color-licorice)] text-sm rounded-lg shadow-lg z-50 border border-gray-200" style={{ padding: '25px 15px 30px 20px' }}>
+              Organize suas transações financeiras em categorias para melhor controle e análise.
+            </div>
+          </div>
+        </div>
 
         {/* Lista de categorias */}
         <div 
@@ -534,7 +560,7 @@ export default function FinanceiroSettingsPage() {
                         
                         <button
                           onClick={() => editCategory(category)}
-                          className="flex items-center gap-3 flex-1 text-left focus:outline-none"
+                          className="flex items-center gap-3 flex-1 text-left focus:outline-none cursor-pointer"
                         >
                           <div
                             className="w-10 h-10 rounded-full flex items-center justify-center border"
@@ -596,7 +622,7 @@ export default function FinanceiroSettingsPage() {
                                     
                                     <button
                                       onClick={() => editCategory(subcat)}
-                                      className="flex items-center gap-3 flex-1 text-left focus:outline-none"
+                                      className="flex items-center gap-3 flex-1 text-left focus:outline-none cursor-pointer"
                                     >
                                       <div
                                         className="w-8 h-8 rounded-full flex items-center justify-center border"
@@ -615,14 +641,6 @@ export default function FinanceiroSettingsPage() {
                                         )}
                                       </div>
                                       <span className="text-sm text-gray-700">{subcat.name}</span>
-                                    </button>
-                                    
-                                    <button
-                                      onClick={() => makeParentCategory(subcat.id, subcat.name)}
-                                      className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 hover:bg-gray-100 rounded transition-colors"
-                                      title="Tornar categoria principal"
-                                    >
-                                      Promover
                                     </button>
                                   </div>
                                 </SortableItem>
@@ -659,31 +677,49 @@ export default function FinanceiroSettingsPage() {
             Adicionar Nova Categoria
           </button>
         </div>
-      </div>
+        </div>
+      )}
 
-      {/* Informação sobre categorias */}
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm text-blue-900">
-          <strong>💡 Dica:</strong> Clique em uma categoria para editá-la. Arraste para o <strong>topo/base</strong> de outra para reordenar, ou para o <strong>meio</strong> para criar subcategoria. Arraste subcategorias entre si para reordená-las. Arraste para fora (área tracejada) para promover a categoria principal.
-        </p>
-      </div>
+      {/* Seção de Contas */}
+      {activeTab === 'contas' && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <h3 className="text-base font-semibold text-gray-900">
+              Contas e Cartões de Crédito
+            </h3>
+            <div className="group relative">
+              <Info className="w-4 h-4 text-gray-400 cursor-help" />
+              <div className="invisible group-hover:visible absolute left-0 top-full mt-2 w-[330px] bg-white text-[var(--color-licorice)] text-sm rounded-lg shadow-lg z-50 border border-gray-200" style={{ padding: '25px 15px 30px 20px' }}>
+                Gerencie suas contas bancárias e cartões de crédito para controlar melhor suas finanças.
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center py-12 text-gray-500">
+            <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p>Funcionalidade em desenvolvimento</p>
+          </div>
+        </div>
+      )}
 
       {/* Category Modal */}
-      <CategoryModal
-        isOpen={showCategoryModal}
-        onClose={() => {
-          setShowCategoryModal(false)
-          setEditingCategory(null)
-        }}
-        type={activeTab === 'despesas' ? 'despesa' : 'receita'}
-        onSuccess={handleCategorySuccess}
-        category={editingCategory ? {
-          id: editingCategory.id,
-          name: editingCategory.name,
-          color: editingCategory.color,
-          icon: editingCategory.icon || 'Lightbulb'
-        } : undefined}
-      />
+      {activeTab !== 'contas' && (
+        <CategoryModal
+          isOpen={showCategoryModal}
+          onClose={() => {
+            setShowCategoryModal(false)
+            setEditingCategory(null)
+          }}
+          type={activeTab === 'despesas' ? 'despesa' : 'receita'}
+          onSuccess={handleCategorySuccess}
+          category={editingCategory ? {
+            id: editingCategory.id,
+            name: editingCategory.name,
+            color: editingCategory.color,
+            icon: editingCategory.icon || 'Lightbulb'
+          } : undefined}
+        />
+      )}
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import Modal from '@/components/Modal'
 import { DateTimePicker } from '@/components/ui/datetime-picker'
 import { showToast } from '@/app/(dashboard)/layout'
+import PageLoading from '@/components/PageLoading'
 import {
   DndContext,
   closestCenter,
@@ -327,7 +328,7 @@ function SortableOrderCard({ order, onClick }: { order: Order; onClick: () => vo
 }
 
 // Componente de card para visualização Kanban
-function KanbanOrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
+function KanbanOrderCard({ order, onClick, dateFormat }: { order: Order; onClick: () => void; dateFormat: 'short' | 'numeric' | 'long' }) {
   const {
     attributes,
     listeners,
@@ -341,6 +342,23 @@ function KanbanOrderCard({ order, onClick }: { order: Order; onClick: () => void
     transform: CSS.Transform.toString(transform),
     transition: transition || 'transform 200ms ease',
     opacity: isDragging ? 0.5 : 1,
+  }
+
+  // Função para formatar data
+  const formatDate = (date: Date): string => {
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    const shortYear = String(year).slice(-2)
+    
+    if (dateFormat === 'short') {
+      return `${day}/${month}/${shortYear}`
+    } else if (dateFormat === 'numeric') {
+      return `${day}/${month}/${year}`
+    } else {
+      const monthName = date.toLocaleDateString('pt-BR', { month: 'short' })
+      return `${day} ${monthName}`
+    }
   }
 
   return (
@@ -374,7 +392,7 @@ function KanbanOrderCard({ order, onClick }: { order: Order; onClick: () => void
         <div className="flex items-center gap-1">
           <Clock className="h-3 w-3" />
           <span>
-            {order.deliveryDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+            {formatDate(order.deliveryDate)}
             {' '}
             {order.deliveryDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </span>
@@ -456,8 +474,20 @@ export default function AgendaPage() {
     return saoPauloTime
   }
 
-  const [view, setView] = useState<'month' | 'week' | 'day' | 'kanban' | 'list'>('list')
-  const [dateFormat, setDateFormat] = useState<'short' | 'numeric' | 'long'>('numeric')
+  const [view, setView] = useState<'month' | 'week' | 'day' | 'kanban' | 'list'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('agendaDefaultView')
+      return (saved as 'month' | 'week' | 'day' | 'kanban' | 'list') || 'list'
+    }
+    return 'list'
+  })
+  const [dateFormat, setDateFormat] = useState<'short' | 'numeric' | 'long'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('agendaDateFormat')
+      return (saved as 'short' | 'numeric' | 'long') || 'numeric'
+    }
+    return 'numeric'
+  })
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -474,6 +504,7 @@ export default function AgendaPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loadingCustomers, setLoadingCustomers] = useState(true)
   const [loadingProducts, setLoadingProducts] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
   const [newCustomerData, setNewCustomerData] = useState({
@@ -631,10 +662,10 @@ export default function AgendaPage() {
 
   // Carregar a view padrão do localStorage após montar
   useEffect(() => {
-    const savedView = localStorage.getItem('ordersDefaultView')
-    const savedDateFormat = localStorage.getItem('ordersDateFormat')
+    const savedView = localStorage.getItem('agendaDefaultView')
+    const savedDateFormat = localStorage.getItem('agendaDateFormat')
     if (savedView) {
-      setView(savedView as 'month' | 'week' | 'day' | 'list')
+      setView(savedView as 'month' | 'week' | 'day' | 'kanban' | 'list')
     }
     if (savedDateFormat) {
       setDateFormat(savedDateFormat as 'short' | 'numeric' | 'long')
@@ -644,6 +675,7 @@ export default function AgendaPage() {
   // Carregar clientes e produtos
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true)
       try {
         const [customersRes, productsRes, ordersRes, statusesRes, categoriesRes, tagsRes] = await Promise.all([
           fetch('/api/customers'),
@@ -710,6 +742,7 @@ export default function AgendaPage() {
       } finally {
         setLoadingCustomers(false)
         setLoadingProducts(false)
+        setIsLoading(false)
       }
     }
     
@@ -1559,7 +1592,9 @@ export default function AgendaPage() {
 
       {view === 'list' && (
         <div className="space-y-6">
-          {filteredOrders.length === 0 ? (
+          {isLoading ? (
+            <PageLoading />
+          ) : filteredOrders.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>{searchQuery || activeFilters.length > 0 ? 'Nenhuma tarefa encontrada' : 'Nenhuma tarefa'}</p>
@@ -1610,59 +1645,70 @@ export default function AgendaPage() {
       )}
 
       {view === 'kanban' && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragEnd={handleDragEnd}
-        >
-          <div className={`grid gap-6`} style={{ gridTemplateColumns: `repeat(${allStatuses.length}, minmax(0, 1fr))` }}>
-            {allStatuses.map(status => {
-              const statusOrders = filteredOrders.filter(o => o.status === status.id)
-              const colorClass = getColorClass(status.color)
-              
-              return (
-                <DroppableKanbanColumn
-                  key={status.id}
-                  id={status.id}
-                  title={status.name}
-                  color={colorClass}
-                  badgeColor={colorClass}
-                  count={statusOrders.length}
-                >
-                  <SortableContext
-                    items={statusOrders.map(o => o.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {statusOrders
-                      .sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime())
-                      .map(order => (
-                        <KanbanOrderCard
-                          key={order.id}
-                          order={order}
-                          onClick={() => handleOrderClick(order)}
-                        />
-                      ))}
-                    {statusOrders.length === 0 && (
-                      <div className="text-center py-12 text-gray-400">
-                        <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                        <p className="text-sm">Nenhuma tarefa</p>
-                      </div>
-                    )}
-                  </SortableContext>
-                </DroppableKanbanColumn>
-              )
-            })}
-          </div>
-        </DndContext>
+        <>
+          {isLoading ? (
+            <PageLoading />
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragEnd={handleDragEnd}
+            >
+              <div className={`grid gap-6`} style={{ gridTemplateColumns: `repeat(${allStatuses.length}, minmax(0, 1fr))` }}>
+                {allStatuses.map(status => {
+                  const statusOrders = filteredOrders.filter(o => o.status === status.id)
+                  const colorClass = getColorClass(status.color)
+                  
+                  return (
+                    <DroppableKanbanColumn
+                      key={status.id}
+                      id={status.id}
+                      title={status.name}
+                      color={colorClass}
+                      badgeColor={colorClass}
+                      count={statusOrders.length}
+                    >
+                      <SortableContext
+                        items={statusOrders.map(o => o.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {statusOrders
+                          .sort((a, b) => a.deliveryDate.getTime() - b.deliveryDate.getTime())
+                          .map(order => (
+                            <KanbanOrderCard
+                              key={order.id}
+                              order={order}
+                              onClick={() => handleOrderClick(order)}
+                              dateFormat={dateFormat}
+                            />
+                          ))}
+                        {statusOrders.length === 0 && (
+                          <div className="text-center py-12 text-gray-400">
+                            <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">Nenhuma tarefa</p>
+                          </div>
+                        )}
+                      </SortableContext>
+                    </DroppableKanbanColumn>
+                  )
+                })}
+              </div>
+            </DndContext>
+          )}
+        </>
       )}
 
       {view === 'month' && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <>
+          {isLoading ? (
+            <PageLoading />
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="grid grid-cols-7 border-b border-gray-200">
               {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
                 <div key={day} className="p-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200 last:border-r-0">
@@ -1725,15 +1771,21 @@ export default function AgendaPage() {
             </SortableContext>
           </div>
         </DndContext>
+          )}
+        </>
       )}
 
       {view === 'week' && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <>
+          {isLoading ? (
+            <PageLoading />
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="grid grid-cols-8">
               <div className="p-3 text-sm font-medium text-gray-700 border-r border-b border-gray-200">
                 Horário
@@ -1809,10 +1861,16 @@ export default function AgendaPage() {
             </SortableContext>
           </div>
         </DndContext>
+          )}
+        </>
       )}
 
       {view === 'day' && (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <>
+          {isLoading ? (
+            <PageLoading />
+          ) : (
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="p-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">
               {capitalizeWeekday(currentDate)}, {formatDateDisplay(currentDate)}
@@ -1896,6 +1954,8 @@ export default function AgendaPage() {
             })}
           </div>
         </div>
+          )}
+        </>
       )}
 
       {/* Modal Tarefa */}

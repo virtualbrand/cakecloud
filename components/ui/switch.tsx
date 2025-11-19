@@ -29,7 +29,7 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
         onClick={handleClick}
         className={`
           relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+          focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-offset-1
           focus-visible:ring-[#B3736B] disabled:cursor-not-allowed disabled:opacity-50
           ${checked ? 'bg-[#B3736B]' : 'bg-gray-200'}
           ${className}

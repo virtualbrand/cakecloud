@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageCircle, Send, Phone, Search, Info, AlertCircle, Settings, Mic } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { Spinner } from '@/components/ui/spinner'
+import PageLoading from '@/components/PageLoading'
 import Link from 'next/link'
 
 type Contact = {
@@ -501,15 +501,7 @@ export default function MensagensPage() {
       {/* Loading inicial */}
       {initialLoading ? (
         <div className="flex items-center justify-center flex-1">
-          <div className="text-center space-y-4">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-[var(--color-lavender-blush)] rounded-full">
-              <Spinner size="large" className="text-[var(--color-old-rose)]" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Carregando suas mensagens...</h3>
-              <p className="text-sm text-gray-500">Aguarde enquanto conectamos ao WhatsApp</p>
-            </div>
-          </div>
+          <PageLoading />
         </div>
       ) : (
         <>

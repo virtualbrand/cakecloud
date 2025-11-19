@@ -219,7 +219,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-info:focus {
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #A1C7D6;
+  box-shadow: 0 0 0 1px white, 0 0 0 2px #A1C7D6;
 }
 
 .btn-outline-info {
@@ -234,7 +234,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-outline-info:focus {
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #A1C7D6;
+  box-shadow: 0 0 0 1px white, 0 0 0 2px #A1C7D6;
 }
 
 /* Success Button - Verde sálvia natural */
@@ -249,7 +249,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-success:focus {
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #A8C9A1;
+  box-shadow: 0 0 0 1px white, 0 0 0 2px #A8C9A1;
 }
 
 .btn-outline-success {
@@ -264,7 +264,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-outline-success:focus {
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #A8C9A1;
+  box-shadow: 0 0 0 1px white, 0 0 0 2px #A8C9A1;
 }
 
 /* Warning Button - Dourado damasco quente */
@@ -279,7 +279,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-warning:focus {
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #E7B97C;
+  box-shadow: 0 0 0 1px white, 0 0 0 2px #E7B97C;
 }
 
 .btn-outline-warning {
@@ -294,7 +294,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-outline-warning:focus {
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #E7B97C;
+  box-shadow: 0 0 0 1px white, 0 0 0 2px #E7B97C;
 }
 
 /* Danger Button - Vermelho rosado harmonioso */
@@ -309,7 +309,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-danger:focus {
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #D67973;
+  box-shadow: 0 0 0 1px white, 0 0 0 2px #D67973;
 }
 
 .btn-outline-danger {
@@ -324,7 +324,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-outline-danger:focus {
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #D67973;
+  box-shadow: 0 0 0 1px white, 0 0 0 2px #D67973;
 }
 
 /* Danger Ghost Button - Sem borda, outline apenas no hover */
@@ -351,7 +351,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-ghost-danger:focus {
   outline: none;
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #D67973;
+  box-shadow: 0 0 0 1px white, 0 0 0 2px #D67973;
 }
 
 .btn-ghost-danger:disabled {
@@ -373,7 +373,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-outline-grey:focus {
-  box-shadow: 0 0 0 2px white, 0 0 0 4px #D1D5DB;
+  box-shadow: 0 0 0 1px white, 0 0 0 2px #D1D5DB;
 }
 
 /* Input and Select Focus Styles */
@@ -388,15 +388,15 @@ textarea:focus,
 select:focus {
   outline: none;
   border-color: #BE9089;
-  box-shadow: 0 0 0 3px rgba(190, 144, 137, 0.15);
+  box-shadow: 0 0 0 2px rgba(190, 144, 137, 0.15);
 }
 
 /* Remove autofill background color */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px white inset, 0 0 0 3px rgba(190, 144, 137, 0.15) !important;
-  box-shadow: 0 0 0 1000px white inset, 0 0 0 3px rgba(190, 144, 137, 0.15) !important;
+  -webkit-box-shadow: 0 0 0 1000px white inset, 0 0 0 2px rgba(190, 144, 137, 0.15) !important;
+  box-shadow: 0 0 0 1000px white inset, 0 0 0 2px rgba(190, 144, 137, 0.15) !important;
   border-color: #BE9089 !important;
 }
 
@@ -438,7 +438,7 @@ input[type="radio"]:checked::before {
 }
 
 input[type="radio"]:focus {
-  box-shadow: 0 0 0 3px rgba(190, 144, 137, 0.2);
+  box-shadow: 0 0 0 2px rgba(190, 144, 137, 0.2);
 }
 
 input[type="radio"]:focus:not(:focus-visible) {
@@ -484,7 +484,7 @@ input[type="checkbox"]:checked::before {
 }
 
 input[type="checkbox"]:focus {
-  box-shadow: 0 0 0 3px rgba(190, 144, 137, 0.2);
+  box-shadow: 0 0 0 2px rgba(190, 144, 137, 0.2);
 }
 
 input[type="checkbox"]:focus:not(:focus-visible) {

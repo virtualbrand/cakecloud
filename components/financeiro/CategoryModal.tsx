@@ -8,9 +8,21 @@ import {
   Wrench, Plus, Home, BarChart, DollarSign, Lock, Car, Coffee, FileText, 
   MoreHorizontal, Palette, CreditCard, User, PawPrint, Shield, Sailboat, Star,
   Sun, Gift, Book, Hospital, Bus, Bird, Package, TreePine, Zap, Droplet,
-  Flame, Wallet, PiggyBank, TrendingUp, Receipt, Coins, HandCoins, CircleDollarSign
+  Flame, Wallet, PiggyBank, TrendingUp, Receipt, Coins, HandCoins, CircleDollarSign,
+  Trash2, Check
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { showToast } from '@/app/(dashboard)/layout'
 
 interface CategoryModalProps {
   isOpen: boolean
@@ -97,6 +109,9 @@ export default function CategoryModal({ isOpen, onClose, type, onSuccess, catego
   const [selectedIcon, setSelectedIcon] = useState(category?.icon || 'Lightbulb')
   const [selectedColor, setSelectedColor] = useState(category?.color || '#6b7280')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
+  const [hasTransactions, setHasTransactions] = useState(false)
   
   // Update state when category prop changes
   useEffect(() => {
@@ -104,12 +119,41 @@ export default function CategoryModal({ isOpen, onClose, type, onSuccess, catego
       setCategoryName(category.name)
       setSelectedIcon(category.icon)
       setSelectedColor(category.color)
+      // Check if category has transactions
+      checkTransactions(category.id)
     } else {
       setCategoryName('')
       setSelectedIcon('Lightbulb')
       setSelectedColor('#6b7280')
+      setHasTransactions(false)
     }
+    setHasChanges(false)
   }, [category])
+
+  const checkTransactions = async (categoryId: string) => {
+    try {
+      // Check if there are any orders using this category
+      const response = await fetch(`/api/financeiro/categories/check-usage?id=${categoryId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setHasTransactions(data.hasTransactions || false)
+      }
+    } catch (error) {
+      console.error('Error checking transactions:', error)
+      setHasTransactions(false)
+    }
+  }
+
+  // Track changes
+  useEffect(() => {
+    if (category) {
+      const changed = 
+        categoryName !== category.name ||
+        selectedIcon !== category.icon ||
+        selectedColor !== category.color
+      setHasChanges(changed)
+    }
+  }, [categoryName, selectedIcon, selectedColor, category])
 
   // Close modal on ESC key
   useEffect(() => {
@@ -127,7 +171,12 @@ export default function CategoryModal({ isOpen, onClose, type, onSuccess, catego
 
   const handleSubmit = async () => {
     if (!categoryName.trim()) {
-      alert('Digite o nome da categoria')
+      showToast({
+        title: 'Campo obrigatório',
+        message: 'Digite o nome da categoria',
+        variant: 'error',
+        duration: 3000,
+      })
       return
     }
 
@@ -154,6 +203,13 @@ export default function CategoryModal({ isOpen, onClose, type, onSuccess, catego
         throw new Error(`Erro ao ${isEdit ? 'editar' : 'criar'} categoria`)
       }
 
+      showToast({
+        title: isEdit ? 'Categoria atualizada!' : 'Categoria criada!',
+        message: `A categoria "${categoryName.trim()}" foi ${isEdit ? 'atualizada' : 'criada'} com sucesso`,
+        variant: 'success',
+        duration: 3000,
+      })
+
       onSuccess()
       onClose()
       setCategoryName('')
@@ -161,9 +217,43 @@ export default function CategoryModal({ isOpen, onClose, type, onSuccess, catego
       setSelectedColor('#6b7280')
     } catch (error) {
       console.error('Error saving category:', error)
-      alert(`Erro ao ${category ? 'editar' : 'criar'} categoria. Tente novamente.`)
+      showToast({
+        title: 'Erro',
+        message: `Erro ao ${category ? 'editar' : 'criar'} categoria. Tente novamente.`,
+        variant: 'error',
+        duration: 3000,
+      })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    try {
+      const response = await fetch(`/api/financeiro/categories?id=${category!.id}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        showToast({
+          title: 'Categoria excluída!',
+          message: `A categoria "${category!.name}" foi excluída com sucesso`,
+          variant: 'success',
+          duration: 3000,
+        })
+        onSuccess()
+        onClose()
+      } else {
+        throw new Error('Erro ao excluir categoria')
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error)
+      showToast({
+        title: 'Erro',
+        message: 'Erro ao excluir categoria. Tente novamente.',
+        variant: 'error',
+        duration: 3000,
+      })
     }
   }
 
@@ -292,48 +382,50 @@ export default function CategoryModal({ isOpen, onClose, type, onSuccess, catego
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 flex justify-between">
+        <div className="flex gap-2 mt-6 justify-end p-6 border-t border-gray-200">
           {isEdit && (
             <button
               type="button"
-              onClick={async () => {
-                if (window.confirm('Tem certeza que deseja excluir esta categoria?')) {
-                  try {
-                    const response = await fetch(`/api/financeiro/categories?id=${category!.id}`, {
-                      method: 'DELETE'
-                    })
-                    
-                    if (response.ok) {
-                      onSuccess()
-                      onClose()
-                    } else {
-                      throw new Error('Erro ao excluir categoria')
-                    }
-                  } catch (error) {
-                    console.error('Error deleting category:', error)
-                    alert('Erro ao excluir categoria. Tente novamente.')
-                  }
-                }
-              }}
-              disabled={isSubmitting}
-              className="btn-danger disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={isSubmitting || hasTransactions}
+              className="btn-outline-danger disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              Excluir categoria
+              <Trash2 className="w-4 h-4" />
+              Excluir {type === 'despesa' ? 'Despesa' : 'Receita'}
             </button>
           )}
           <button
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting || !categoryName.trim()}
-            className="btn-success disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
+            className="btn-success disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
+            <Check className="w-4 h-4" />
             {isSubmitting 
               ? (isEdit ? 'Salvando...' : 'Criando...') 
-              : (isEdit ? 'Salvar alterações' : '+ Nova categoria')
+              : (isEdit ? `Atualizar ${type === 'despesa' ? 'Despesa' : 'Receita'}` : `Adicionar ${type === 'despesa' ? 'Despesa' : 'Receita'}`)
             }
           </button>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {type === 'despesa' ? 'Despesa' : 'Receita'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta categoria? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="btn-outline-grey">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="btn-danger">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

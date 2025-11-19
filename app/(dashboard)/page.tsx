@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, DollarSign, Users, Package, ShoppingCart, Tar
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import SaaSMetricsChart from '@/components/charts/SaaSMetricsChart'
+import PageLoading from '@/components/PageLoading'
 
 export default function Home() {
   const [userRole, setUserRole] = useState<string>('admin')
@@ -75,7 +76,7 @@ export default function Home() {
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
-        <div className="text-gray-500">Carregando...</div>
+        <PageLoading />
       </div>
     )
   }

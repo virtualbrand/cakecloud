@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import Modal from '@/components/Modal'
 import { Spinner } from '@/components/ui/spinner'
-import { Info, Package, Layers, ShoppingBag, Search, ArrowDownAZ, ArrowDownZA, Filter, Check, Trash2, Plus, Camera, SwitchCamera, CircleX, X } from 'lucide-react'
+import { Info, Package, Layers, ShoppingBag, Tags, Search, ArrowDownAZ, ArrowDownZA, Filter, Check, Trash2, Plus, Camera, SwitchCamera, CircleX, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -416,7 +416,7 @@ export default function ProductsPage() {
           {typeFilter.map(filter => (
             <div
               key={filter}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-[var(--color-lavender-blush)] text-[var(--color-old-rose)] border-[var(--color-old-rose)]"
+              className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border bg-[var(--color-lavender-blush)] text-[var(--color-old-rose)] border-[var(--color-old-rose)]"
             >
               <span className="text-xs font-medium">
                 {filter === 'ingredientes' ? 'Ingredientes' : 'Materiais'}
@@ -433,7 +433,7 @@ export default function ProductsPage() {
           {categoryFilter.map(filter => (
             <div
               key={filter}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-[var(--color-lavender-blush)] text-[var(--color-old-rose)] border-[var(--color-old-rose)]"
+              className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border bg-[var(--color-lavender-blush)] text-[var(--color-old-rose)] border-[var(--color-old-rose)]"
             >
               <span className="text-xs font-medium">{filter}</span>
               <button
@@ -480,7 +480,7 @@ export default function ProductsPage() {
               : 'bg-transparent text-gray-600 hover:bg-white'
           }`}
         >
-          <ShoppingBag className="w-4 h-4" />
+          <Tags className="w-4 h-4" />
           Produtos Finais
         </button>
       </div>

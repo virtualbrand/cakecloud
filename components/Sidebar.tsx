@@ -5,7 +5,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { 
   LayoutDashboard, 
-  CakeSlice,
+  Tags,
+  BookText,
   ShoppingCart, 
   Users, 
   MessageCircle,
@@ -25,13 +26,14 @@ import { createClient } from '@/lib/supabase/client'
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-  { icon: CakeSlice, label: 'Produtos', href: '/products' },
+  { icon: Tags, label: 'Produtos', href: '/products' },
+  { icon: BookText, label: 'Cardápios', href: '/cardapios' },
   { icon: ShoppingCart, label: 'Pedidos', href: '/orders' },
-  { icon: Users, label: 'Clientes', href: '/customers' },
+  { icon: DollarSign, label: 'Financeiro', href: '/financeiro' },
   { icon: MessageSquare, label: 'Mensagens', href: '/mensagens' },
   { icon: MessageCircle, label: 'Atendimento', href: '/atendimento' },
+  { icon: Users, label: 'Clientes', href: '/customers' },
   { icon: Calendar, label: 'Agenda', href: '/agenda' },
-  { icon: DollarSign, label: 'Financeiro', href: '/financeiro' },
 ]
 
 const superAdminMenuItems = [
